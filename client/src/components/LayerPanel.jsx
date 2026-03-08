@@ -119,6 +119,29 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts, status }) 
                         count={layerCounts.eonet}
                         countLabel="events"
                     />
+
+                    <div style={{ height: '1px', background: 'var(--border-glass)', margin: '16px 0' }} />
+
+                    <LayerToggle
+                        id="routes"
+                        icon={<Radio size={16} />}
+                        label="Aviation Corridors"
+                        active={layers.routes}
+                        onToggle={() => toggleLayer('routes')}
+                        status={status?.routes}
+                        countLabel="global"
+                    />
+
+                    <LayerToggle
+                        id="airports"
+                        icon={<MapPin size={16} />}
+                        label="Aviation Hubs"
+                        active={layers.airports}
+                        onToggle={() => toggleLayer('airports')}
+                        status={status?.airports}
+                        count={layerCounts.airports}
+                        countLabel="hubs"
+                    />
                 </div>
 
                 {/* Keyboard shortcuts hint */}

@@ -13,7 +13,9 @@ function App() {
         earthquakes: false,
         notams: false,
         internet: false,
-        eonet: false
+        eonet: false,
+        routes: false,
+        airports: false
     });
 
     // Time-travel state

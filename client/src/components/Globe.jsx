@@ -8,6 +8,8 @@ import EarthquakeLayer from '../layers/EarthquakeLayer';
 import EonetLayer from '../layers/EonetLayer';
 import NotamLayer from '../layers/NotamLayer';
 import InternetLayer from '../layers/InternetLayer';
+import RouteLayer from '../layers/RouteLayer';
+import AirportLayer from '../layers/AirportLayer';
 
 Cesium.Ion.defaultAccessToken = 'YOUR_CESIUM_ION_TOKEN';
 
@@ -163,6 +165,8 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, 
                     <EonetLayer viewer={viewer} active={layers.eonet} onCount={(c) => onLayerCount('eonet', c)} onLayerState={onLayerState} />
                     <NotamLayer viewer={viewer} active={layers.notams} onCount={(c) => onLayerCount('notams', c)} onLayerState={onLayerState} />
                     <InternetLayer viewer={viewer} active={layers.internet} onCount={(c) => onLayerCount('internet', c)} onLayerState={onLayerState} />
+                    <RouteLayer viewer={viewer} active={layers.routes} onLayerState={onLayerState} />
+                    <AirportLayer viewer={viewer} active={layers.airports} onCount={(c) => onLayerCount('airports', c)} onLayerState={onLayerState} />
                 </>
             )}
         </div>

@@ -18,6 +18,7 @@ const eventsRoute = require('./routes/events');
 const searchRoute = require('./routes/search');
 const earthquakesRoute = require('./routes/earthquakes');
 const eonetRoute = require('./routes/eonet');
+const routesRoute = require('./routes/routes');
 
 // Mount Routes
 app.use('/api/flights', flightsRoute);
@@ -28,6 +29,7 @@ app.use('/api/events', eventsRoute);
 app.use('/api/search', searchRoute);
 app.use('/api/earthquakes', earthquakesRoute);
 app.use('/api/eonet', eonetRoute);
+app.use('/api/routes', routesRoute);
 
 // Collectors
 const { startScheduler } = require('./collectors/scheduler');
