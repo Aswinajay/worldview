@@ -30,13 +30,17 @@ const fetchGroup = async (group) => {
 
     for (let i = 0; i < attempts; i++) {
         const url = baseUrls[i % baseUrls.length];
+        // Dynamic timeout: Starlink needs more time for large JSON payloads
+        const currentTimeout = group.id === 'starlink' ? 60000 : 30000;
+
         try {
             const res = await fetch(url, {
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'application/json'
+                    'Accept': 'application/json',
+                    'Connection': 'keep-alive'
                 },
-                timeout: 30000 // 30s
+                timeout: currentTimeout
             });
 
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -54,8 +58,9 @@ const fetchGroup = async (group) => {
             return processed;
         } catch (err) {
             lastError = err;
+            console.warn(`  [Satellite] Attempt ${i + 1} failed for ${group.name}: ${err.message}`);
             if (i < attempts - 1) {
-                const wait = Math.pow(2, i) * 3000;
+                const wait = Math.pow(2, i) * 5000;
                 await new Promise(r => setTimeout(r, wait));
             }
         }
@@ -69,12 +74,15 @@ const fetchTLEs = async () => {
     console.log(`[${new Date().toISOString()}] Initiating global satellite TLE sync (Sequential Mode)...`);
     try {
         const allSatellites = [];
-        // Sequential to avoid slamming the API and getting throttled
-        for (const group of GROUPS) {
-            const assets = await fetchGroup(group);
+        // Sequential with gaps to avoid slamming the API
+        const groups = GROUPS;
+        for (let idx = 0; idx < groups.length; idx++) {
+            const assets = await fetchGroup(groups[idx]);
             allSatellites.push(...assets);
-            // Small gap between groups
-            await new Promise(r => setTimeout(r, 1000));
+            // Stagger next group to let network clear
+            if (idx < groups.length - 1) {
+                await new Promise(r => setTimeout(r, 2500));
+            }
         }
 
         if (allSatellites.length > 0) {
