@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as Cesium from 'cesium';
 
+// Store sampled properties for interpolation
+const vesselCache = {};
+
 const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
     const [ships, setShips] = useState([]);
     const dataSourceRef = useRef(null);
@@ -36,18 +39,17 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
                 viewer.dataSources.remove(dataSourceRef.current);
                 dataSourceRef.current = null;
             }
+            // Clear cache
+            Object.keys(vesselCache).forEach(k => delete vesselCache[k]);
             return;
         }
 
         const render = async () => {
             if (!dataSourceRef.current) {
                 const ds = new Cesium.CustomDataSource('maritime');
-
-                // Enable clustering
                 ds.clustering.enabled = true;
                 ds.clustering.pixelRange = 30;
                 ds.clustering.minimumClusterSize = 3;
-
                 ds.clustering.clusterEvent.addEventListener((clusteredEntities, cluster) => {
                     cluster.label.show = true;
                     cluster.label.text = clusteredEntities.length.toLocaleString();
@@ -56,29 +58,41 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
                     cluster.label.outlineColor = Cesium.Color.BLACK;
                     cluster.label.outlineWidth = 2;
                     cluster.label.style = Cesium.LabelStyle.FILL_AND_OUTLINE;
-
                     cluster.point.show = true;
                     cluster.point.pixelSize = 20;
                     cluster.point.color = Cesium.Color.CYAN.withAlpha(0.6);
                     cluster.point.outlineColor = Cesium.Color.WHITE;
                     cluster.point.outlineWidth = 1;
                 });
-
                 dataSourceRef.current = ds;
                 await viewer.dataSources.add(ds);
             }
+
             const ds = dataSourceRef.current;
-            ds.entities.removeAll();
+            const updatedIds = new Set();
+            const now = viewer.clock.currentTime;
 
             ships.forEach(ship => {
                 if (!ship.longitude || !ship.latitude) return;
+                const mmsi = ship.mmsi;
+                const id = `ship-${mmsi}`;
+                updatedIds.add(id);
 
                 let color = Cesium.Color.CYAN;
                 if (ship.ship_type === 'Tanker') color = Cesium.Color.ORANGE;
                 else if (ship.ship_type === 'Cargo') color = Cesium.Color.YELLOW;
                 else if (ship.ship_type === 'Passenger') color = Cesium.Color.MAGENTA;
 
-                const heading = Cesium.Math.toRadians(ship.heading || 0);
+                const position = Cesium.Cartesian3.fromDegrees(ship.longitude, ship.latitude, 0);
+
+                if (!vesselCache[mmsi]) {
+                    vesselCache[mmsi] = {
+                        sampledPosition: new Cesium.SampledPositionProperty(),
+                    };
+                    vesselCache[mmsi].sampledPosition.forwardExtrapolationType = Cesium.ExtrapolationType.EXTRAPOLATE;
+                    vesselCache[mmsi].sampledPosition.forwardExtrapolationDuration = 60;
+                }
+                vesselCache[mmsi].sampledPosition.addSample(now, position);
 
                 const shipSvg = `data:image/svg+xml;base64,${btoa(`
                     <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white">
@@ -86,36 +100,53 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
                     </svg>
                 `)}`;
 
-                ds.entities.add({
-                    id: `ship-${ship.mmsi}`,
-                    name: ship.ship_name || ship.mmsi,
-                    position: Cesium.Cartesian3.fromDegrees(ship.longitude, ship.latitude, 0),
-                    description: `
-                        <table class="cesium-infoBox-defaultTable"><tbody>
-                            <tr><th>Name</th><td>${ship.ship_name}</td></tr>
-                            <tr><th>Type</th><td>${ship.ship_type}</td></tr>
-                            <tr><th>MMSI</th><td>${ship.mmsi}</td></tr>
-                            <tr><th>Speed</th><td>${ship.speed ? ship.speed.toFixed(1) + ' kn' : 'N/A'}</td></tr>
-                            <tr><th>Heading</th><td>${ship.heading ? Math.round(ship.heading) + '°' : 'N/A'}</td></tr>
-                        </tbody></table>`,
-                    billboard: {
-                        image: shipSvg,
-                        width: 18,
-                        height: 18,
-                        color: color,
-                        rotation: heading,
-                        alignedAxis: Cesium.Cartesian3.UNIT_Z,
-                        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 15000000)
-                    },
-                    label: {
-                        text: ship.ship_name || '', font: '11px monospace',
-                        fillColor: color,
-                        outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
-                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                        pixelOffset: new Cesium.Cartesian2(0, 18),
-                        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 5000000)
-                    }
-                });
+                const description = `
+                    <table class="cesium-infoBox-defaultTable"><tbody>
+                        <tr><th>Name</th><td>${ship.ship_name}</td></tr>
+                        <tr><th>Type</th><td>${ship.ship_type}</td></tr>
+                        <tr><th>MMSI</th><td>${ship.mmsi}</td></tr>
+                        <tr><th>Speed</th><td>${ship.speed ? ship.speed.toFixed(1) + ' kn' : 'N/A'}</td></tr>
+                        <tr><th>Heading</th><td>${ship.heading ? Math.round(ship.heading) + '°' : 'N/A'}</td></tr>
+                    </tbody></table>`;
+
+                const entity = ds.entities.getById(id);
+                if (entity) {
+                    entity.position = vesselCache[mmsi].sampledPosition;
+                    entity.orientation = new Cesium.VelocityOrientationProperty(vesselCache[mmsi].sampledPosition);
+                    entity.description = description;
+                    entity.billboard.color = color;
+                } else {
+                    ds.entities.add({
+                        id,
+                        name: ship.ship_name || ship.mmsi,
+                        position: vesselCache[mmsi].sampledPosition,
+                        orientation: new Cesium.VelocityOrientationProperty(vesselCache[mmsi].sampledPosition),
+                        description,
+                        billboard: {
+                            image: shipSvg,
+                            width: 18,
+                            height: 18,
+                            color: color,
+                            alignedAxis: new Cesium.VelocityVectorProperty(vesselCache[mmsi].sampledPosition, true),
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 15000000)
+                        },
+                        label: {
+                            text: ship.ship_name || '', font: '11px monospace',
+                            fillColor: color,
+                            outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
+                            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                            pixelOffset: new Cesium.Cartesian2(0, 18),
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 5000000)
+                        }
+                    });
+                }
+            });
+
+            const toRemove = [];
+            ds.entities.values.forEach(e => { if (!updatedIds.has(e.id)) toRemove.push(e.id); });
+            toRemove.forEach(id => {
+                ds.entities.removeById(id);
+                delete vesselCache[id.replace('ship-', '')];
             });
         };
         render();

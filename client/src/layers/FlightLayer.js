@@ -5,6 +5,9 @@ import * as Cesium from 'cesium';
 const trailHistory = {};
 const MAX_TRAIL_POINTS = 30;
 
+// Store sampled properties for interpolation
+const flightCache = {};
+
 const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => {
     const [flights, setFlights] = useState([]);
     const dataSourceRef = useRef(null);
@@ -50,6 +53,8 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
                 viewer.dataSources.remove(trailDataSourceRef.current);
                 trailDataSourceRef.current = null;
             }
+            // Clear cache
+            Object.keys(flightCache).forEach(k => delete flightCache[k]);
             if (onCount) onCount(0);
             return;
         }
@@ -57,13 +62,9 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
         const renderData = async () => {
             if (!dataSourceRef.current) {
                 const ds = new Cesium.CustomDataSource('flights');
-
-                // Enable clustering for performance
                 ds.clustering.enabled = true;
                 ds.clustering.pixelRange = 40;
                 ds.clustering.minimumClusterSize = 5;
-
-                // Custom cluster style
                 ds.clustering.clusterEvent.addEventListener((clusteredEntities, cluster) => {
                     cluster.label.show = true;
                     cluster.label.text = clusteredEntities.length.toLocaleString();
@@ -73,14 +74,12 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
                     cluster.label.outlineWidth = 3;
                     cluster.label.style = Cesium.LabelStyle.FILL_AND_OUTLINE;
                     cluster.label.verticalOrigin = Cesium.VerticalOrigin.CENTER;
-
                     cluster.point.show = true;
                     cluster.point.pixelSize = 24;
                     cluster.point.color = Cesium.Color.fromCssColorString('#00d2ff').withAlpha(0.6);
                     cluster.point.outlineColor = Cesium.Color.WHITE;
                     cluster.point.outlineWidth = 2;
                 });
-
                 dataSourceRef.current = ds;
                 await viewer.dataSources.add(ds);
             }
@@ -94,6 +93,8 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
             const updatedIds = new Set();
             const updatedTrailIds = new Set();
 
+            const now = currentTime ? Cesium.JulianDate.fromDate(currentTime) : viewer.clock.currentTime;
+
             flights.forEach(flight => {
                 if (typeof flight.longitude !== 'number' || typeof flight.latitude !== 'number' ||
                     isNaN(flight.longitude) || isNaN(flight.latitude)) return;
@@ -105,6 +106,22 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
                 updatedTrailIds.add(trailId);
 
                 const altitude = (typeof flight.altitude === 'number' && !isNaN(flight.altitude)) ? flight.altitude : 10000;
+                const position = Cesium.Cartesian3.fromDegrees(flight.longitude, flight.latitude, altitude);
+                const heading = Cesium.Math.toRadians(flight.heading || 0);
+
+                // --- Predicted Movement Architecture ---
+                if (!flightCache[icao]) {
+                    flightCache[icao] = {
+                        sampledPosition: new Cesium.SampledPositionProperty(),
+                        lastUpdate: now
+                    };
+                    // Forward extrapolation: Allow the entity to move ahead if we haven't received data for a while
+                    flightCache[icao].sampledPosition.forwardExtrapolationType = Cesium.ExtrapolationType.EXTRAPOLATE;
+                    flightCache[icao].sampledPosition.forwardExtrapolationDuration = 30; // 30 seconds of forward movement
+                }
+
+                const cache = flightCache[icao];
+                cache.sampledPosition.addSample(now, position);
 
                 // Accumulate trail history
                 if (!trailHistory[icao]) trailHistory[icao] = [];
@@ -125,14 +142,6 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
                     }
                 }
 
-                const position = Cesium.Cartesian3.fromDegrees(
-                    flight.longitude, flight.latitude, altitude
-                );
-
-                const heading = Cesium.Math.toRadians(flight.heading || 0);
-                const hpr = new Cesium.HeadingPitchRoll(heading, 0, 0);
-                const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
-
                 let color = Cesium.Color.DODGERBLUE;
                 if (altitude > 10000) color = Cesium.Color.CRIMSON;
                 else if (altitude > 7000) color = Cesium.Color.GOLD;
@@ -144,7 +153,7 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
                         <tr><th>ICAO24</th><td>${icao}</td></tr>
                         <tr><th>Country</th><td>${flight.origin_country || 'Unknown'}</td></tr>
                         <tr><th>Altitude</th><td>${altitude ? Math.round(altitude) + ' m (' + Math.round(altitude * 3.28084) + ' ft)' : 'N/A'}</td></tr>
-                        <tr><th>Velocity</th><td>${flight.velocity ? Math.round(flight.velocity * 3.6) + ' km/h (' + Math.round(flight.velocity * 1.94384) + ' kn)' : 'N/A'}</td></tr>
+                        <tr><th>Velocity</th><td>${flight.velocity ? Math.round(flight.velocity * 3.6) + ' km/h (' + Math.round(flight.velocity * 1.94384) + ' kn)' : 'Level'}</td></tr>
                         <tr><th>Heading</th><td>${flight.heading ? Math.round(flight.heading) + '°' : 'N/A'}</td></tr>
                         <tr><th>Vertical Rate</th><td>${flight.vertical_rate ? (flight.vertical_rate > 0 ? '↑' : '↓') + ' ' + Math.abs(Math.round(flight.vertical_rate)) + ' m/s' : 'Level'}</td></tr>
                         <tr><th>On Ground</th><td>${flight.on_ground ? 'Yes' : 'No'}</td></tr>
@@ -158,22 +167,25 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
 
                 const entity = ds.entities.getById(id);
                 if (entity) {
-                    entity.position = position;
-                    entity.orientation = orientation;
+                    entity.position = cache.sampledPosition;
+                    // Automatically orient based on movement direction
+                    entity.orientation = new Cesium.VelocityOrientationProperty(cache.sampledPosition);
                     entity.description = description;
                     entity.billboard.color = color;
-                    entity.billboard.rotation = heading;
                 } else {
                     ds.entities.add({
                         id, name: flight.callsign || icao,
-                        position, orientation, description,
+                        position: cache.sampledPosition,
+                        orientation: new Cesium.VelocityOrientationProperty(cache.sampledPosition),
+                        description,
                         billboard: {
                             image: planeSvg,
                             width: 24,
                             height: 24,
                             color: color,
-                            rotation: heading,
-                            alignedAxis: Cesium.Cartesian3.UNIT_Z,
+                            // rotation: rotation is now handled by orientation property normally, 
+                            // but billboard rotation is 2D. We use alignedAxis for 3D billboards.
+                            alignedAxis: new Cesium.VelocityVectorProperty(cache.sampledPosition, true),
                             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 8000000)
                         },
                         label: {
@@ -192,9 +204,7 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
                 // Trail polyline
                 const trail = trailHistory[icao];
                 if (trail && trail.length >= 2) {
-                    // Pre-filter trail to guarantee no NaN values get sent to Cesium Array buffers
                     const validTrail = trail.filter(p => !isNaN(p.lon) && !isNaN(p.lat) && !isNaN(p.alt));
-
                     if (validTrail.length >= 2) {
                         const trailPositions = validTrail.map(p =>
                             Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
@@ -222,7 +232,10 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
 
             const toRemove = [];
             ds.entities.values.forEach(e => { if (!updatedIds.has(e.id)) toRemove.push(e.id); });
-            toRemove.forEach(id => ds.entities.removeById(id));
+            toRemove.forEach(id => {
+                ds.entities.removeById(id);
+                delete flightCache[id.replace('flight-', '')];
+            });
 
             const trailsToRemove = [];
             trailDs.entities.values.forEach(e => { if (!updatedTrailIds.has(e.id)) trailsToRemove.push(e.id); });
