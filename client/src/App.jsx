@@ -201,6 +201,21 @@ function App() {
         setSearchQuery('');
     }, []);
 
+    // Handle ESC key for popups/search
+    useEffect(() => {
+        const handleEsc = (e) => {
+            if (e.key === 'Escape') {
+                setSearchQuery('');
+                setSearchResults([]);
+                if (viewerRef.current && viewerRef.current.selectedEntity) {
+                    viewerRef.current.selectedEntity = undefined;
+                }
+            }
+        };
+        window.addEventListener('keydown', handleEsc);
+        return () => window.removeEventListener('keydown', handleEsc);
+    }, []);
+
     return (
         <div className="app-container">
             <Header
@@ -219,6 +234,7 @@ function App() {
                 toggleLayer={toggleLayer}
                 setBaseLayer={setBaseLayer}
                 layerCounts={layerCounts}
+                status={layers} // Temporary: Use layer toggle state as a hint for loading until we have real status state
             />
             <main className="globe-container">
                 <Globe

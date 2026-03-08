@@ -49,10 +49,12 @@ const SatelliteLayer = ({ viewer, active, onCount }) => {
 
                     if (sat.TLE_LINE1 && sat.TLE_LINE2) {
                         satrec = satellite.twoline2satrec(sat.TLE_LINE1, sat.TLE_LINE2);
-                    } else if (sat.MEAN_MOTION && sat.ECCENTRICITY !== undefined) {
-                        // Build TLE from OMM/GP JSON fields
-                        // This is a fallback for CelesTrak GP JSON format without TLE lines
-                        return; // Skip if no TLE lines
+                    } else if (sat.MEAN_MOTION !== undefined && sat.ECCENTRICITY !== undefined) {
+                        // OMM format parsing (often returned by CelesTrak JSON GP)
+                        // satellite.js Twoline2Satrec expects TLE lines, but we can synthesize or use jsonToSatrec if available
+                        // Since many APIs provide this, we convert it or skip.
+                        // For now we rely on the backend providing TLE_LINE1/2 but fix the check
+                        return;
                     }
 
                     if (satrec && satrec.error === 0) {

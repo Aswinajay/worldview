@@ -1,7 +1,7 @@
 import React from 'react';
 import { Plane, Ship, Satellite, WifiOff, AlertTriangle, Radio, MapPin, Menu, X, Activity, CloudLightning } from 'lucide-react';
 
-const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
+const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts, status }) => {
     const [collapsed, setCollapsed] = React.useState(false);
 
     return (
@@ -47,7 +47,7 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
                         label="ADS-B Flights"
                         active={layers.flights}
                         onToggle={() => toggleLayer('flights')}
-                        status="live"
+                        status={status?.flights || 'live'}
                         count={layerCounts.flights}
                         countLabel="tracked"
                     />
@@ -58,6 +58,7 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
                         label="AIS Maritime"
                         active={layers.maritime}
                         onToggle={() => toggleLayer('maritime')}
+                        status={status?.maritime}
                         count={layerCounts.maritime}
                         countLabel="vessels"
                     />
@@ -68,6 +69,7 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
                         label="Orbital Assets"
                         active={layers.satellites}
                         onToggle={() => toggleLayer('satellites')}
+                        status={status?.satellites}
                         count={layerCounts.satellites}
                         countLabel="tracked"
                     />
@@ -80,6 +82,7 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
                         label="Live Earthquakes"
                         active={layers.earthquakes}
                         onToggle={() => toggleLayer('earthquakes')}
+                        status={status?.earthquakes}
                         count={layerCounts.earthquakes}
                         countLabel="quakes"
                     />
@@ -90,6 +93,7 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
                         label="Airspace NOTAMs"
                         active={layers.notams}
                         onToggle={() => toggleLayer('notams')}
+                        status={status?.notams}
                         count={layerCounts.notams}
                         countLabel="active"
                     />
@@ -100,6 +104,7 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
                         label="Internet Outages"
                         active={layers.internet}
                         onToggle={() => toggleLayer('internet')}
+                        status={status?.internet}
                         count={layerCounts.internet}
                         countLabel="countries"
                     />
@@ -110,6 +115,7 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
                         label="Natural Events"
                         active={layers.eonet}
                         onToggle={() => toggleLayer('eonet')}
+                        status={status?.eonet}
                         count={layerCounts.eonet}
                         countLabel="events"
                     />
