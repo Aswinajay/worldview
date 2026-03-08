@@ -150,6 +150,17 @@ body {
   background: rgba(0, 210, 255, 0.05);
 }
 
+.layer-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateX(4px);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.layer-item.active:hover {
+  border-left-width: 5px;
+  background: rgba(0, 210, 255, 0.08);
+}
+
 .layer-icon-title {
   display: flex;
   align-items: center;
@@ -221,9 +232,23 @@ input:checked+.slider:before {
 
 .status-dot.loading {
   background-color: var(--color-accent);
-  box-shadow: 0 0 8px var(--color-accent);
-  animation: loading-spin 1s linear infinite;
-  border: 1.5px dashed var(--bg-dark);
+  box-shadow: 0 0 12px var(--color-accent);
+  animation: radar 2s ease-out infinite;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+@keyframes radar {
+  0% {
+    transform: scale(0.8);
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(0, 210, 255, 0.7);
+  }
+
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+    box-shadow: 0 0 0 10px rgba(0, 210, 255, 0);
+  }
 }
 
 .status-dot.error {
@@ -257,6 +282,70 @@ input:checked+.slider:before {
 
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* New Animations */
+.fade-in {
+  animation: fade-in 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.slide-in-left {
+  animation: slide-in-left 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.slide-up {
+  animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.app-title {
+  text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+  animation: title-glow 4s ease-in-out infinite;
+}
+
+@keyframes title-glow {
+
+  0%,
+  100% {
+    text-shadow: 0 0 10px rgba(0, 210, 255, 0.3);
+  }
+
+  50% {
+    text-shadow: 0 0 20px rgba(0, 210, 255, 0.6), 0 0 30px rgba(0, 210, 255, 0.2);
   }
 }
 

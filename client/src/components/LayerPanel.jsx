@@ -11,7 +11,7 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts, status }) 
                 {collapsed ? <X size={20} /> : <Menu size={20} />}
             </button>
 
-            <div className={`layer-panel glass-panel ${collapsed ? 'open' : ''}`}>
+            <div className={`layer-panel glass-panel slide-in-left ${collapsed ? 'open' : ''}`}>
                 <h2 style={{ fontSize: '14px', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
                     Intelligence Layers
                 </h2>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Link2, Search, X } from 'lucide-react';
+import { Camera, Link2, Search, X, Plane, Ship, MapPin } from 'lucide-react';
 
 const Header = ({ mouseCoords, currentTime, isLive, onScreenshot, onShare, searchQuery, onSearch, searchResults, onSelectResult }) => {
     const [time, setTime] = useState(new Date());
@@ -12,7 +12,7 @@ const Header = ({ mouseCoords, currentTime, isLive, onScreenshot, onShare, searc
     const displayTime = currentTime || time;
 
     return (
-        <div className="app-header glass-panel">
+        <div className="app-header glass-panel fade-in">
             <div className="app-title" style={{ fontWeight: 700, color: 'var(--color-accent)', letterSpacing: '3px', fontSize: '15px' }}>
                 WORLDVIEW
             </div>
@@ -41,27 +41,28 @@ const Header = ({ mouseCoords, currentTime, isLive, onScreenshot, onShare, searc
                     )}
                 </div>
                 {searchResults.length > 0 && (
-                    <div style={{
+                    <div className="slide-up" style={{
                         position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '4px',
                         background: 'rgba(16,18,27,0.95)', border: '1px solid var(--border-glass)',
                         borderRadius: '6px', maxHeight: '200px', overflowY: 'auto', zIndex: 100,
-                        backdropFilter: 'blur(12px)'
+                        backdropFilter: 'blur(12px)', boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
                     }}>
                         {searchResults.map((r, i) => (
                             <div key={i} onClick={() => onSelectResult(r)}
                                 style={{
                                     padding: '8px 12px', cursor: 'pointer', fontSize: '12px',
                                     borderBottom: '1px solid rgba(255,255,255,0.05)',
-                                    display: 'flex', alignItems: 'center', gap: '8px'
+                                    display: 'flex', alignItems: 'center', gap: '8px',
+                                    transition: 'all 0.2s ease'
                                 }}
                                 onMouseEnter={e => e.target.style.background = 'rgba(255,255,255,0.08)'}
                                 onMouseLeave={e => e.target.style.background = 'transparent'}
                             >
-                                <span style={{ color: 'var(--color-accent)', fontSize: '10px', fontWeight: 700 }}>
-                                    {r.type === 'flight' ? '✈' : r.type === 'ship' ? '🚢' : '📍'}
+                                <span style={{ color: 'var(--color-accent)', display: 'flex' }}>
+                                    {r.type === 'flight' ? <Plane size={12} /> : r.type === 'ship' ? <Ship size={12} /> : <MapPin size={12} />}
                                 </span>
-                                <span>{r.name || r.callsign || r.ship_name}</span>
-                                <span style={{ color: 'var(--text-secondary)', fontSize: '10px', marginLeft: 'auto' }}>
+                                <span style={{ fontWeight: 500 }}>{r.name || r.callsign || r.ship_name}</span>
+                                <span style={{ color: 'var(--text-secondary)', fontSize: '10px', marginLeft: 'auto', textTransform: 'uppercase' }}>
                                     {r.type}
                                 </span>
                             </div>
@@ -70,12 +71,13 @@ const Header = ({ mouseCoords, currentTime, isLive, onScreenshot, onShare, searc
                 )}
             </div>
 
-            <div className="time-display" style={{ fontFamily: 'monospace', fontSize: '13px', letterSpacing: '1px' }}>
+            <div className="time-display" style={{ fontFamily: 'monospace', fontSize: '13px', letterSpacing: '1px', transition: 'all 0.3s ease' }}>
                 {displayTime.toISOString().replace('T', ' ').substring(0, 19)} UTC
             </div>
 
-            <div className="coord-display" style={{ color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '12px' }}>
-                LAT {mouseCoords.lat.toFixed(4)}° LON {mouseCoords.lon.toFixed(4)}°
+            <div className="coord-display" style={{ color: 'var(--text-secondary)', fontFamily: 'monospace', fontSize: '12px', transition: 'all 0.3s ease' }}>
+                <span style={{ opacity: 0.6 }}>LAT</span> {(mouseCoords.lat || 0).toFixed(4)}°
+                <span style={{ opacity: 0.6, marginLeft: '8px' }}>LON</span> {(mouseCoords.lon || 0).toFixed(4)}°
             </div>
 
             {/* Live Indicator */}
