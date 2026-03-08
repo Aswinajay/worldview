@@ -19,40 +19,63 @@ const GROUPS = [
 ];
 
 const fetchGroup = async (group) => {
-    const url = `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group.id}&FORMAT=json`;
-    try {
-        const res = await fetch(url.replace('.org', '.com'), {
-            headers: {
-                'User-Agent': 'WorldView/1.0',
-                'Accept': 'application/json'
-            },
-            timeout: 15000
-        });
+    // We try .org first, then fall back to .com
+    const baseUrls = [
+        `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group.id}&FORMAT=json`,
+        `https://celestrak.com/NORAD/elements/gp.php?GROUP=${group.id}&FORMAT=json`
+    ];
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
+    const attempts = 3;
+    let lastError;
 
-        if (!Array.isArray(data)) return [];
+    for (let i = 0; i < attempts; i++) {
+        const url = baseUrls[i % baseUrls.length];
+        try {
+            const res = await fetch(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'application/json'
+                },
+                timeout: 30000 // 30s
+            });
 
-        const processed = data.slice(0, group.limit || 50).map(s => ({
-            ...s,
-            group: group.name,
-            color: group.color
-        }));
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
 
-        console.log(`  [Satellite] Fetched ${processed.length} assets for ${group.name}`);
-        return processed;
-    } catch (err) {
-        console.error(`  [Satellite] Failed to fetch ${group.name}: ${err.message}`);
-        return [];
+            if (!Array.isArray(data)) return [];
+
+            const processed = data.slice(0, group.limit || 50).map(s => ({
+                ...s,
+                group: group.name,
+                color: group.color
+            }));
+
+            console.log(`  [Satellite] Successful sync: ${processed.length} assets for ${group.name}`);
+            return processed;
+        } catch (err) {
+            lastError = err;
+            if (i < attempts - 1) {
+                const wait = Math.pow(2, i) * 3000;
+                await new Promise(r => setTimeout(r, wait));
+            }
+        }
     }
+
+    console.error(`  [Satellite] Final failure for ${group.name} after ${attempts} attempts: ${lastError.message}`);
+    return [];
 };
 
 const fetchTLEs = async () => {
-    console.log(`[${new Date().toISOString()}] Initiating global satellite TLE sync...`);
+    console.log(`[${new Date().toISOString()}] Initiating global satellite TLE sync (Sequential Mode)...`);
     try {
-        const results = await Promise.all(GROUPS.map(g => fetchGroup(g)));
-        const allSatellites = results.flat();
+        const allSatellites = [];
+        // Sequential to avoid slamming the API and getting throttled
+        for (const group of GROUPS) {
+            const assets = await fetchGroup(group);
+            allSatellites.push(...assets);
+            // Small gap between groups
+            await new Promise(r => setTimeout(r, 1000));
+        }
 
         if (allSatellites.length > 0) {
             fs.writeFileSync(TLE_CACHE_PATH, JSON.stringify(allSatellites, null, 2));
