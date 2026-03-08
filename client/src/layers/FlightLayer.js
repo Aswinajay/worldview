@@ -134,35 +134,46 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
                 const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
 
                 let color = Cesium.Color.DODGERBLUE;
-                if (flight.altitude > 10000) color = Cesium.Color.CRIMSON;
-                else if (flight.altitude > 7000) color = Cesium.Color.GOLD;
-                else if (flight.altitude > 3000) color = Cesium.Color.LIMEGREEN;
+                if (altitude > 10000) color = Cesium.Color.CRIMSON;
+                else if (altitude > 7000) color = Cesium.Color.GOLD;
+                else if (altitude > 3000) color = Cesium.Color.LIMEGREEN;
 
                 const description = `
                     <table class="cesium-infoBox-defaultTable"><tbody>
                         <tr><th>Callsign</th><td>${flight.callsign || 'Unknown'}</td></tr>
                         <tr><th>ICAO24</th><td>${icao}</td></tr>
                         <tr><th>Country</th><td>${flight.origin_country || 'Unknown'}</td></tr>
-                        <tr><th>Altitude</th><td>${flight.altitude ? Math.round(flight.altitude) + ' m (' + Math.round(flight.altitude * 3.28084) + ' ft)' : 'N/A'}</td></tr>
+                        <tr><th>Altitude</th><td>${altitude ? Math.round(altitude) + ' m (' + Math.round(altitude * 3.28084) + ' ft)' : 'N/A'}</td></tr>
                         <tr><th>Velocity</th><td>${flight.velocity ? Math.round(flight.velocity * 3.6) + ' km/h (' + Math.round(flight.velocity * 1.94384) + ' kn)' : 'N/A'}</td></tr>
                         <tr><th>Heading</th><td>${flight.heading ? Math.round(flight.heading) + '°' : 'N/A'}</td></tr>
                         <tr><th>Vertical Rate</th><td>${flight.vertical_rate ? (flight.vertical_rate > 0 ? '↑' : '↓') + ' ' + Math.abs(Math.round(flight.vertical_rate)) + ' m/s' : 'Level'}</td></tr>
                         <tr><th>On Ground</th><td>${flight.on_ground ? 'Yes' : 'No'}</td></tr>
                     </tbody></table>`;
 
+                const planeSvg = `data:image/svg+xml;base64,${btoa(`
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white">
+                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+                    </svg>
+                `)}`;
+
                 const entity = ds.entities.getById(id);
                 if (entity) {
                     entity.position = position;
                     entity.orientation = orientation;
                     entity.description = description;
-                    entity.point.color = color;
+                    entity.billboard.color = color;
+                    entity.billboard.rotation = heading;
                 } else {
                     ds.entities.add({
                         id, name: flight.callsign || icao,
                         position, orientation, description,
-                        point: {
-                            pixelSize: 7, color,
-                            outlineColor: Cesium.Color.WHITE.withAlpha(0.8), outlineWidth: 1,
+                        billboard: {
+                            image: planeSvg,
+                            width: 24,
+                            height: 24,
+                            color: color,
+                            rotation: heading,
+                            alignedAxis: Cesium.Cartesian3.UNIT_Z,
                             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 8000000)
                         },
                         label: {
@@ -172,7 +183,7 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
                             outlineColor: Cesium.Color.BLACK,
                             outlineWidth: 2,
                             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                            pixelOffset: new Cesium.Cartesian2(12, 0),
+                            pixelOffset: new Cesium.Cartesian2(0, 20),
                             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1500000)
                         }
                     });

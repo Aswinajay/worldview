@@ -78,6 +78,14 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
                 else if (ship.ship_type === 'Cargo') color = Cesium.Color.YELLOW;
                 else if (ship.ship_type === 'Passenger') color = Cesium.Color.MAGENTA;
 
+                const heading = Cesium.Math.toRadians(ship.heading || 0);
+
+                const shipSvg = `data:image/svg+xml;base64,${btoa(`
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white">
+                        <path d="M4 16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8H4v8zM19 6V2h-2v4h-2V2h-2v4h-2V2h-2v4H9V2H7v4H5V4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6h-2z"/>
+                    </svg>
+                `)}`;
+
                 ds.entities.add({
                     id: `ship-${ship.mmsi}`,
                     name: ship.ship_name || ship.mmsi,
@@ -90,9 +98,13 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
                             <tr><th>Speed</th><td>${ship.speed ? ship.speed.toFixed(1) + ' kn' : 'N/A'}</td></tr>
                             <tr><th>Heading</th><td>${ship.heading ? Math.round(ship.heading) + '°' : 'N/A'}</td></tr>
                         </tbody></table>`,
-                    point: {
-                        pixelSize: 10, color,
-                        outlineColor: Cesium.Color.WHITE, outlineWidth: 2,
+                    billboard: {
+                        image: shipSvg,
+                        width: 18,
+                        height: 18,
+                        color: color,
+                        rotation: heading,
+                        alignedAxis: Cesium.Cartesian3.UNIT_Z,
                         distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 15000000)
                     },
                     label: {
@@ -100,7 +112,7 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
                         fillColor: color,
                         outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
                         style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                        pixelOffset: new Cesium.Cartesian2(14, 0),
+                        pixelOffset: new Cesium.Cartesian2(0, 18),
                         distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 5000000)
                     }
                 });
