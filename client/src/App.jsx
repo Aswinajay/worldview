@@ -68,6 +68,14 @@ function App() {
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e) => {
+            // ESC always works, even in input fields
+            if (e.code === 'Escape') {
+                e.preventDefault();
+                setSearchQuery('');
+                setSearchResults([]);
+                if (e.target.tagName === 'INPUT') e.target.blur();
+                return;
+            }
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             switch (e.code) {
                 case 'Space':

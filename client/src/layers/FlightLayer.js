@@ -2,15 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import * as Cesium from 'cesium';
 
 // Store accumulated trail positions across renders
-const trailHistory = {};  // { icao24: [{ lon, lat, alt, time }] }
-const MAX_TRAIL_POINTS = 30; // Keep last 30 position samples per aircraft
+const trailHistory = {};
+const MAX_TRAIL_POINTS = 30;
 
-const FlightLayer = ({ viewer, active, currentTime }) => {
+const FlightLayer = ({ viewer, active, currentTime, onCount }) => {
     const [flights, setFlights] = useState([]);
     const dataSourceRef = useRef(null);
     const trailDataSourceRef = useRef(null);
 
-    // Fetch flight data
     useEffect(() => {
         if (!active) return;
 
@@ -22,6 +21,7 @@ const FlightLayer = ({ viewer, active, currentTime }) => {
                 const res = await fetch(url);
                 const data = await res.json();
                 setFlights(data);
+                if (onCount) onCount(data.length);
             } catch (err) {
                 console.error('Failed to fetch flights:', err);
             }
@@ -32,7 +32,6 @@ const FlightLayer = ({ viewer, active, currentTime }) => {
         return () => { if (interval) clearInterval(interval); };
     }, [active, currentTime]);
 
-    // Render flights + trails
     useEffect(() => {
         if (!viewer) return;
 
@@ -45,11 +44,11 @@ const FlightLayer = ({ viewer, active, currentTime }) => {
                 viewer.dataSources.remove(trailDataSourceRef.current);
                 trailDataSourceRef.current = null;
             }
+            if (onCount) onCount(0);
             return;
         }
 
         const renderData = async () => {
-            // Ensure data sources exist
             if (!dataSourceRef.current) {
                 dataSourceRef.current = new Cesium.CustomDataSource('flights');
                 await viewer.dataSources.add(dataSourceRef.current);
@@ -76,7 +75,6 @@ const FlightLayer = ({ viewer, active, currentTime }) => {
                 // Accumulate trail history
                 if (!trailHistory[icao]) trailHistory[icao] = [];
                 const lastEntry = trailHistory[icao][trailHistory[icao].length - 1];
-                // Only add if position changed
                 if (!lastEntry ||
                     Math.abs(lastEntry.lon - flight.longitude) > 0.001 ||
                     Math.abs(lastEntry.lat - flight.latitude) > 0.001) {
@@ -86,7 +84,6 @@ const FlightLayer = ({ viewer, active, currentTime }) => {
                         alt: flight.altitude || 10000,
                         time: Date.now()
                     });
-                    // Trim to max length
                     if (trailHistory[icao].length > MAX_TRAIL_POINTS) {
                         trailHistory[icao] = trailHistory[icao].slice(-MAX_TRAIL_POINTS);
                     }
@@ -100,7 +97,6 @@ const FlightLayer = ({ viewer, active, currentTime }) => {
                 const hpr = new Cesium.HeadingPitchRoll(heading, 0, 0);
                 const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
 
-                // Altitude coloring
                 let color = Cesium.Color.DODGERBLUE;
                 if (flight.altitude > 10000) color = Cesium.Color.CRIMSON;
                 else if (flight.altitude > 7000) color = Cesium.Color.GOLD;
@@ -118,7 +114,6 @@ const FlightLayer = ({ viewer, active, currentTime }) => {
                         <tr><th>On Ground</th><td>${flight.on_ground ? 'Yes' : 'No'}</td></tr>
                     </tbody></table>`;
 
-                // Update or create the aircraft point entity
                 const entity = ds.entities.getById(id);
                 if (entity) {
                     entity.position = position;
@@ -147,13 +142,12 @@ const FlightLayer = ({ viewer, active, currentTime }) => {
                     });
                 }
 
-                // Render trail polyline
+                // Trail polyline
                 const trail = trailHistory[icao];
                 if (trail && trail.length >= 2) {
                     const trailPositions = trail.map(p =>
                         Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
                     );
-
                     const trailEntity = trailDs.entities.getById(trailId);
                     if (trailEntity) {
                         trailEntity.polyline.positions = trailPositions;
@@ -174,17 +168,14 @@ const FlightLayer = ({ viewer, active, currentTime }) => {
                 }
             });
 
-            // Remove stale aircraft entities
             const toRemove = [];
             ds.entities.values.forEach(e => { if (!updatedIds.has(e.id)) toRemove.push(e.id); });
             toRemove.forEach(id => ds.entities.removeById(id));
 
-            // Remove stale trail entities
             const trailsToRemove = [];
             trailDs.entities.values.forEach(e => { if (!updatedTrailIds.has(e.id)) trailsToRemove.push(e.id); });
             trailsToRemove.forEach(id => {
                 trailDs.entities.removeById(id);
-                // Clean up history for removed flights
                 const icao = id.replace('trail-', '');
                 delete trailHistory[icao];
             });

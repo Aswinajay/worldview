@@ -15,7 +15,7 @@ const OUTAGE_DATA = [
     { country: 'Eritrea', code: 'ER', score: 0.15, coords: [39.7, 15.2] },
 ];
 
-const InternetLayer = ({ viewer, active }) => {
+const InternetLayer = ({ viewer, active, onCount }) => {
     const dataSourceRef = useRef(null);
 
     useEffect(() => {
@@ -29,6 +29,7 @@ const InternetLayer = ({ viewer, active }) => {
             return;
         }
 
+        if (onCount) onCount(OUTAGE_DATA.length);
         const render = async () => {
             if (!dataSourceRef.current) {
                 dataSourceRef.current = new Cesium.CustomDataSource('internet');

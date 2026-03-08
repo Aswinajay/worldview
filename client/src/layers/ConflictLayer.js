@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 
-const ConflictLayer = ({ viewer, active }) => {
+const ConflictLayer = ({ viewer, active, onCount }) => {
     const [events, setEvents] = useState([]);
     const dataSourceRef = useRef(null);
 
@@ -38,6 +38,7 @@ const ConflictLayer = ({ viewer, active }) => {
 
             // If no events from API, show some demo markers
             const data = events.length > 0 ? events : DEMO_EVENTS;
+            if (onCount) onCount(data.length);
 
             data.forEach((evt, i) => {
                 if (!evt.longitude || !evt.latitude) return;

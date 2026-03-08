@@ -25,7 +25,7 @@ const NOTAM_ZONES = [
     },
 ];
 
-const NotamLayer = ({ viewer, active }) => {
+const NotamLayer = ({ viewer, active, onCount }) => {
     const dataSourceRef = useRef(null);
 
     useEffect(() => {
@@ -39,6 +39,7 @@ const NotamLayer = ({ viewer, active }) => {
             return;
         }
 
+        if (onCount) onCount(NOTAM_ZONES.length);
         const render = async () => {
             if (!dataSourceRef.current) {
                 dataSourceRef.current = new Cesium.CustomDataSource('notams');

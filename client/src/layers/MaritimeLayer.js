@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as Cesium from 'cesium';
 
-const MaritimeLayer = ({ viewer, active }) => {
+const MaritimeLayer = ({ viewer, active, onCount }) => {
     const [ships, setShips] = useState([]);
     const dataSourceRef = useRef(null);
 
@@ -10,7 +10,9 @@ const MaritimeLayer = ({ viewer, active }) => {
         const fetchShips = async () => {
             try {
                 const res = await fetch('/api/maritime');
-                setShips(await res.json());
+                const data = await res.json();
+                setShips(data);
+                if (onCount) onCount(data.length);
             } catch (err) { console.error('Maritime fetch error:', err); }
         };
         fetchShips();

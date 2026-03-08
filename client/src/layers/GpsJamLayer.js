@@ -15,7 +15,7 @@ const JAMMING_ZONES = [
     { lat: 35.7, lon: 51.4, intensity: 0.35, label: 'Tehran' },
 ];
 
-const GpsJamLayer = ({ viewer, active }) => {
+const GpsJamLayer = ({ viewer, active, onCount }) => {
     const dataSourceRef = useRef(null);
 
     useEffect(() => {
@@ -29,6 +29,7 @@ const GpsJamLayer = ({ viewer, active }) => {
             return;
         }
 
+        if (onCount) onCount(JAMMING_ZONES.length);
         const render = async () => {
             if (!dataSourceRef.current) {
                 dataSourceRef.current = new Cesium.CustomDataSource('gpsJam');

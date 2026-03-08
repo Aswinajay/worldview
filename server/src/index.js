@@ -15,6 +15,7 @@ const snapshotRoute = require('./routes/snapshot');
 const maritimeRoute = require('./routes/maritime');
 const satellitesRoute = require('./routes/satellites');
 const eventsRoute = require('./routes/events');
+const searchRoute = require('./routes/search');
 
 // Mount Routes
 app.use('/api/flights', flightsRoute);
@@ -22,6 +23,7 @@ app.use('/api/snapshot', snapshotRoute);
 app.use('/api/maritime', maritimeRoute);
 app.use('/api/satellites', satellitesRoute);
 app.use('/api/events', eventsRoute);
+app.use('/api/search', searchRoute);
 
 // Collectors
 const { startScheduler } = require('./collectors/scheduler');
@@ -31,6 +33,17 @@ startScheduler();
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
 });
+
+// Serve frontend in production
+if (process.env.NODE_ENV === 'production' || process.env.SERVE_CLIENT === 'true') {
+    const clientPath = path.join(__dirname, '../../client/dist');
+    app.use(express.static(clientPath));
+    app.get('*', (req, res) => {
+        if (!req.path.startsWith('/api/')) {
+            res.sendFile(path.join(clientPath, 'index.html'));
+        }
+    });
+}
 
 // Start Server
 app.listen(PORT, () => {

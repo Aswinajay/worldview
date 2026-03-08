@@ -7,8 +7,8 @@ const maritime = require('./maritime');
 const startScheduler = () => {
     console.log('Starting background data collectors...');
 
-    // Scrape flights every 15 seconds
-    cron.schedule('*/15 * * * * *', () => {
+    // Scrape flights every 60 seconds to avoid OpenSky Free limits
+    cron.schedule('*/60 * * * * *', () => {
         opensky.fetchFlights();
     });
 
