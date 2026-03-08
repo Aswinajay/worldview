@@ -16,9 +16,12 @@ const fetchFlightsArea = async (lat, lon, dist = 250) => {
     try {
         const res = await fetch(`https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${dist}`, {
             headers: { 'User-Agent': 'WorldView/1.0' },
-            timeout: 10000
+            timeout: 15000
         });
-        if (!res.ok) return [];
+        if (!res.ok) {
+            console.error(`[Collector] ADSB.lol area scan failed: ${res.status} ${res.statusText}`);
+            return [];
+        }
 
         const data = await res.json();
         if (data.ac && data.ac.length > 0) {
@@ -30,16 +33,18 @@ const fetchFlightsArea = async (lat, lon, dist = 250) => {
             const insertMany = db.transaction((records) => {
                 for (const flight of records) {
                     if (flight.lon !== undefined && flight.lat !== undefined) {
-                        insertStmt.run(
-                            flight.hex,
-                            flight.flight ? flight.flight.trim() : '',
-                            'Unknown',
-                            flight.lon,
-                            flight.lat,
-                            flight.alt_baro || flight.alt_geom || 0,
-                            flight.gs || 0,
-                            flight.track || 0
-                        );
+                        try {
+                            insertStmt.run(
+                                flight.hex,
+                                flight.flight ? flight.flight.trim() : '',
+                                'Unknown',
+                                flight.lon,
+                                flight.lat,
+                                flight.alt_baro || flight.alt_geom || 0,
+                                flight.gs || 0,
+                                flight.track || 0
+                            );
+                        } catch (e) { /* ignore single record errors */ }
                     }
                 }
             });
@@ -48,7 +53,7 @@ const fetchFlightsArea = async (lat, lon, dist = 250) => {
         }
         return [];
     } catch (err) {
-        console.error(`Error fetching flights for area ${lat},${lon}:`, err.message);
+        console.error(`[Collector] Critical error scanning area ${lat},${lon}:`, err);
         return [];
     }
 };

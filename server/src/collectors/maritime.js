@@ -38,19 +38,16 @@ const fetchMaritime = async () => {
 
         let savedCount = 0;
         const insertMany = db.transaction((records) => {
-            // Processing only 500 ships at a time to keep local SQLite operations snappy
-            const limit = Math.min(records.length, 500);
-            for (let i = 0; i < limit; i++) {
-                const ship = records[i];
+            for (const ship of records) {
                 if (ship.geometry && ship.geometry.coordinates) {
                     insertStmt.run(
                         ship.mmsi,
-                        `Baltic Vessel ${ship.mmsi}`, // Digitraffic "locations" endpoint doesn't carry names
-                        'Cargo', // defaulting type
+                        ship.properties.name || `Vessel ${ship.mmsi}`,
+                        ship.properties.type || 'Cargo',
                         ship.geometry.coordinates[0],
                         ship.geometry.coordinates[1],
-                        ship.properties.cog || 0, // course over ground
-                        ship.properties.sog || 0  // speed over ground
+                        ship.properties.cog || 0,
+                        ship.properties.sog || 0
                     );
                     savedCount++;
                 }
@@ -58,7 +55,7 @@ const fetchMaritime = async () => {
         });
 
         insertMany(ships);
-        console.log(`Saved ${savedCount} real maritime vessel records.`);
+        console.log(`Successfully indexed ${savedCount} global maritime vessels.`);
     } catch (err) {
         console.error('Error fetching maritime AIS:', err.message);
     }

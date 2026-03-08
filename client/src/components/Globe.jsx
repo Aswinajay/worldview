@@ -54,7 +54,8 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, 
                         west: Cesium.Math.toDegrees(rect.west),
                         south: Cesium.Math.toDegrees(rect.south),
                         east: Cesium.Math.toDegrees(rect.east),
-                        north: Cesium.Math.toDegrees(rect.north)
+                        north: Cesium.Math.toDegrees(rect.north),
+                        altitude: v.camera.positionCartographic.height
                     });
                 }
             }, 500); // 500ms debounce

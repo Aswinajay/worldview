@@ -11,8 +11,8 @@ router.post('/trigger', async (req, res) => {
         const { lat, lon } = req.body;
         if (!lat || !lon) return res.status(400).json({ error: 'Missing coordinates' });
 
-        // Simple area key (1x1 degree precision to prevent spamming small movements)
-        const areaKey = `${Math.floor(lat)},${Math.floor(lon)}`;
+        // Decrease granularity (2-degree grid) to prevent spamming small movements
+        const areaKey = `${Math.floor(lat / 2) * 2},${Math.floor(lon / 2) * 2}`;
         const now = Date.now();
 
         if (lastScan.has(areaKey) && (now - lastScan.get(areaKey) < SCAN_COOLDOWN)) {

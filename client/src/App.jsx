@@ -31,6 +31,9 @@ function App() {
     useEffect(() => {
         if (!viewBbox) return;
 
+        // Only scan if zoomed in (altitude < 3,000 km)
+        if (viewBbox.altitude > 3000000) return;
+
         // Calculate center for scan
         const lat = (viewBbox.south + viewBbox.north) / 2;
         const lon = (viewBbox.west + viewBbox.east) / 2;
