@@ -24,6 +24,7 @@ router.get('/', (req, res) => {
                 ${bboxFilter}
                 GROUP BY mmsi
                 HAVING MIN(ABS(strftime('%s', timestamp) - strftime('%s', ?)))
+                LIMIT 2000
             `;
             ships = db.prepare(query).all(targetTime, targetTime, ...params, targetTime);
         } else {
@@ -33,6 +34,7 @@ router.get('/', (req, res) => {
                 ${bboxFilter}
                 GROUP BY mmsi
                 HAVING MAX(timestamp)
+                LIMIT 2000
             `;
             ships = db.prepare(query).all(...params);
         }

@@ -49,14 +49,18 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, 
             if (viewChangeTimeoutRef.current) clearTimeout(viewChangeTimeoutRef.current);
             viewChangeTimeoutRef.current = setTimeout(() => {
                 const rect = v.camera.computeViewRectangle();
-                if (rect && onViewChange) {
-                    onViewChange({
-                        west: Cesium.Math.toDegrees(rect.west),
-                        south: Cesium.Math.toDegrees(rect.south),
-                        east: Cesium.Math.toDegrees(rect.east),
-                        north: Cesium.Math.toDegrees(rect.north),
-                        altitude: v.camera.positionCartographic.height
-                    });
+                if (onViewChange) {
+                    if (rect) {
+                        onViewChange({
+                            west: Cesium.Math.toDegrees(rect.west),
+                            south: Cesium.Math.toDegrees(rect.south),
+                            east: Cesium.Math.toDegrees(rect.east),
+                            north: Cesium.Math.toDegrees(rect.north),
+                            altitude: v.camera.positionCartographic.height
+                        });
+                    } else {
+                        onViewChange(null);
+                    }
                 }
             }, 500); // 500ms debounce
         };

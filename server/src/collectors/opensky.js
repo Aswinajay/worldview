@@ -16,7 +16,7 @@ const fetchFlightsArea = async (lat, lon, dist = 250) => {
     try {
         const res = await fetch(`https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${dist}`, {
             headers: { 'User-Agent': 'WorldView/1.0' },
-            timeout: 15000
+            timeout: 30000
         });
         if (!res.ok) {
             console.error(`[Collector] ADSB.lol area scan failed: ${res.status} ${res.statusText}`);
