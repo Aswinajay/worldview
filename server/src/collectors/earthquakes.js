@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
 
 const EARTHQUAKES_CACHE = path.resolve(__dirname, '../../data/earthquakes_cache.json');
 

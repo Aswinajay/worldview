@@ -1,4 +1,5 @@
 const db = require('../db/database');
+const fetch = require('node-fetch');
 
 // We use ADSB.lol public API which provides unauthenticated real-time global flight data
 // By polling major hubs, we capture thousands of real-time flights without hitting strict rate limits

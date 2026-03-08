@@ -1,6 +1,7 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+const fetch = require('node-fetch');
 
 const TLE_CACHE_PATH = path.resolve(__dirname, '../../data/tle_cache.json');
 
