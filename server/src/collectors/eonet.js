@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
+const httpsAgent = new require('https').Agent({ family: 4, keepAlive: true });
+const httpAgent = new require('http').Agent({ family: 4, keepAlive: true });
 
 const EONET_CACHE = path.resolve(__dirname, '../../data/eonet_cache.json');
 
@@ -13,6 +15,7 @@ const fetchEonet = async () => {
     for (let i = 0; i < attempts; i++) {
         try {
             const response = await fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=30', {
+                agent: (parsed) => parsed.protocol === 'http:' ? httpAgent : httpsAgent,
                 headers: {
                     'User-Agent': 'WorldView/1.0',
                     'Accept': 'application/json'

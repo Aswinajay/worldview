@@ -1,5 +1,7 @@
 const db = require('../db/database');
 const fetch = require('node-fetch');
+const httpsAgent = new require('https').Agent({ family: 4, keepAlive: true });
+const httpAgent = new require('http').Agent({ family: 4, keepAlive: true });
 
 // We use ADSB.lol public API which provides unauthenticated real-time global flight data
 // By polling major hubs, we capture thousands of real-time flights without hitting strict rate limits
@@ -15,6 +17,7 @@ const HUBS = [
 const fetchFlightsArea = async (lat, lon, dist = 250) => {
     const url = `https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${dist}`;
     const options = {
+        agent: (parsed) => parsed.protocol === 'http:' ? httpAgent : httpsAgent,
         headers: { 'User-Agent': 'WorldView/1.0' },
         timeout: 20000 // 20s per attempt
     };

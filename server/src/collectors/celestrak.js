@@ -3,6 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
 
+const httpsAgent = new https.Agent({ family: 4, keepAlive: true });
+const httpAgent = new require('http').Agent({ family: 4, keepAlive: true });
+
 const TLE_CACHE_PATH = path.resolve(__dirname, '../../data/tle_cache.json');
 
 // Satellite groups to fetch from CelesTrak
@@ -35,6 +38,7 @@ const fetchGroup = async (group) => {
 
         try {
             const res = await fetch(url, {
+                agent: (parsed) => parsed.protocol === 'http:' ? httpAgent : httpsAgent,
                 headers: {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     'Accept': 'application/json',

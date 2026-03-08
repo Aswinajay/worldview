@@ -1,5 +1,7 @@
 const db = require('../db/database');
 const fetch = require('node-fetch');
+const httpsAgent = new require('https').Agent({ family: 4, keepAlive: true });
+const httpAgent = new require('http').Agent({ family: 4, keepAlive: true });
 
 // Real-time complete public AIS feed from Finland's Digitraffic (covers Baltic Sea heavily, extremely high quality)
 const AIS_URL = 'https://meri.digitraffic.fi/api/ais/v1/locations';
@@ -13,6 +15,7 @@ const fetchMaritime = async () => {
         for (let i = 0; i < attempts; i++) {
             try {
                 res = await fetch(AIS_URL, {
+                    agent: (parsed) => parsed.protocol === 'http:' ? httpAgent : httpsAgent,
                     headers: {
                         'Accept-Encoding': 'gzip',
                         'User-Agent': 'WorldView/1.0'

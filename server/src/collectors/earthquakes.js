@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
+const httpsAgent = new require('https').Agent({ family: 4, keepAlive: true });
+const httpAgent = new require('http').Agent({ family: 4, keepAlive: true });
 
 const EARTHQUAKES_CACHE = path.resolve(__dirname, '../../data/earthquakes_cache.json');
 
@@ -9,6 +11,7 @@ const fetchEarthquakes = async () => {
     try {
         // Fetch M2.5+ earthquakes from the past day
         const response = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson', {
+            agent: (parsed) => parsed.protocol === 'http:' ? httpAgent : httpsAgent,
             headers: { 'User-Agent': 'WorldView/1.0' },
             timeout: 15000
         });
