@@ -46,4 +46,25 @@ router.get('/', (req, res) => {
     }
 });
 
+// GET /api/maritime/trail?mmsi=ID - Returns historical path for a specific vessel
+router.get('/trail', (req, res) => {
+    try {
+        const { mmsi } = req.query;
+        if (!mmsi) return res.status(400).json({ error: 'Missing mmsi' });
+
+        const trail = db.prepare(`
+            SELECT longitude, latitude, timestamp 
+            FROM maritime 
+            WHERE mmsi = ? 
+            AND timestamp > datetime('now', '-12 hours')
+            ORDER BY timestamp ASC
+        `).all(mmsi);
+
+        res.json(trail);
+    } catch (err) {
+        console.error('Error fetching maritime trail:', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 module.exports = router;

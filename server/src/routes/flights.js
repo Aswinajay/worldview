@@ -46,4 +46,25 @@ router.get('/', (req, res) => {
     }
 });
 
+// GET /api/flights/trail?icao24=ID - Returns historical path for a specific aircraft
+router.get('/trail', (req, res) => {
+    try {
+        const { icao24 } = req.query;
+        if (!icao24) return res.status(400).json({ error: 'Missing icao24' });
+
+        const trail = db.prepare(`
+            SELECT longitude, latitude, altitude, timestamp 
+            FROM flights 
+            WHERE icao24 = ? 
+            AND timestamp > datetime('now', '-2 hours')
+            ORDER BY timestamp ASC
+        `).all(icao24);
+
+        res.json(trail);
+    } catch (err) {
+        console.error('Error fetching flight trail:', err);
+        res.status(500).json({ error: 'Database error' });
+    }
+});
+
 module.exports = router;
