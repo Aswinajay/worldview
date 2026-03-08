@@ -32,33 +32,42 @@ const AirportLayer = ({ viewer, active, onLayerState, onCount }) => {
                 ds.entities.removeAll();
 
                 data.forEach(apt => {
+                    const isMilitary = apt.tactical_class !== 'CIVILIAN HUB';
+                    const colorHex = isMilitary ? '#ffb300' : '#33ff00';
+                    const cesiumColor = Cesium.Color.fromCssColorString(colorHex);
+
                     ds.entities.add({
                         id: `apt-${apt.icao}`,
                         name: apt.name,
                         position: Cesium.Cartesian3.fromDegrees(apt.longitude, apt.latitude, 0),
                         description: `
-                            <table class="cesium-infoBox-defaultTable"><tbody>
-                                <tr><th>City</th><td>${apt.city}</td></tr>
-                                <tr><th>Country</th><td>${apt.country}</td></tr>
-                                <tr><th>IATA/ICAO</th><td>${apt.iata || '-'}/${apt.icao}</td></tr>
-                                <tr><th>Altitude</th><td>${Math.round(apt.altitude)} ft</td></tr>
-                            </tbody></table>`,
+                            <div class="tactical-info">
+                                <div style="font-weight:800; color:${colorHex}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.2); letter-spacing:1px">
+                                    FACILITY: ${apt.name.toUpperCase()}
+                                </div>
+                                <table class="cesium-infoBox-defaultTable"><tbody>
+                                    <tr><th>STRAT_CLASS</th><td style="color:${colorHex}; font-weight:800">${apt.tactical_class}</td></tr>
+                                    <tr><th>REGION</th><td>${apt.city.toUpperCase()}, ${apt.country.toUpperCase()}</td></tr>
+                                    <tr><th>ICAO IDENT</th><td>${apt.icao}</td></tr>
+                                    <tr><th>ELEVATION</th><td>${Math.round(apt.altitude)} FT (MSL)</td></tr>
+                                </tbody></table>
+                            </div>`,
                         point: {
-                            color: Cesium.Color.fromCssColorString('#00d2ff'),
-                            pixelSize: 6,
-                            outlineColor: Cesium.Color.WHITE,
+                            color: cesiumColor.withAlpha(0.8),
+                            pixelSize: isMilitary ? 8 : 5,
+                            outlineColor: Cesium.Color.fromCssColorString('#050705'),
                             outlineWidth: 1,
                             distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 5000000)
                         },
                         label: {
                             text: apt.icao,
-                            font: '10px monospace',
-                            fillColor: Cesium.Color.WHITE,
+                            font: isMilitary ? 'bold 11px monospace' : '10px monospace',
+                            fillColor: cesiumColor,
                             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
                             outlineWidth: 2,
-                            outlineColor: Cesium.Color.BLACK,
-                            pixelOffset: new Cesium.Cartesian2(0, -12),
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1000000)
+                            outlineColor: Cesium.Color.fromCssColorString('#050705'),
+                            pixelOffset: new Cesium.Cartesian2(0, -14),
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, isMilitary ? 2000000 : 1000000)
                         }
                     });
                 });
