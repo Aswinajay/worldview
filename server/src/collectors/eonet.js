@@ -8,7 +8,8 @@ const fetchEonet = async () => {
     console.log(`[${new Date().toISOString()}] Fetching NASA EONET events data...`);
     try {
         const response = await fetch('https://eonet.gsfc.nasa.gov/api/v3/events?status=open&days=30', {
-            headers: { 'User-Agent': 'WorldView/1.0' }
+            headers: { 'User-Agent': 'WorldView/1.0' },
+            timeout: 15000
         });
 
         if (!response.ok) {

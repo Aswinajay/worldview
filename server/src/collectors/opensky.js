@@ -41,7 +41,10 @@ const fetchFlights = async () => {
 
     for (const hub of HUBS) {
         try {
-            const res = await fetch(`https://api.adsb.lol/v2/lat/${hub.lat}/lon/${hub.lon}/dist/${hub.dist}`);
+            const res = await fetch(`https://api.adsb.lol/v2/lat/${hub.lat}/lon/${hub.lon}/dist/${hub.dist}`, {
+                headers: { 'User-Agent': 'WorldView/1.0' },
+                timeout: 15000 // 15s timeout per hub
+            });
             if (!res.ok) {
                 console.error(`ADSB.lol API Error for ${hub.name}: Status Code ${res.status}`);
                 continue;

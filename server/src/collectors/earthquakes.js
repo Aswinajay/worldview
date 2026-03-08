@@ -9,7 +9,8 @@ const fetchEarthquakes = async () => {
     try {
         // Fetch M2.5+ earthquakes from the past day
         const response = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/2.5_day.geojson', {
-            headers: { 'User-Agent': 'WorldView/1.0' }
+            headers: { 'User-Agent': 'WorldView/1.0' },
+            timeout: 15000
         });
 
         if (!response.ok) {
