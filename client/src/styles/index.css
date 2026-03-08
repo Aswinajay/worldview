@@ -36,6 +36,20 @@ body {
   height: 100vh;
 }
 
+.tactical-info {
+  padding: 4px;
+  font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
+  font-size: 11px;
+}
+
+.tactical-info th {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary) !important;
+  text-align: left;
+  padding-right: 15px;
+}
+
 /* Layout */
 .app-container {
   display: flex;

@@ -65,11 +65,17 @@ const EonetLayer = ({ viewer, active, onCount, onLayerState }) => {
                     position: Cesium.Cartesian3.fromDegrees(evt.longitude, evt.latitude, 500),
                     name: evt.title,
                     description: `
-                        <table class="cesium-infoBox-defaultTable"><tbody>
-                            <tr><th>Event</th><td>${evt.title}</td></tr>
-                            <tr><th>Category</th><td>${evt.category}</td></tr>
-                            <tr><th>Last Updated</th><td>${new Date(evt.time).toUTCString()}</td></tr>
-                        </tbody></table>`,
+                        <div class="tactical-info">
+                            <div style="font-weight:700; color:${color.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1)">
+                                NASA EVENT: ${evt.category.toUpperCase()}
+                            </div>
+                            <table class="cesium-infoBox-defaultTable"><tbody>
+                                <tr><th>Title</th><td>${evt.title}</td></tr>
+                                <tr><th>Category</th><td>${evt.category}</td></tr>
+                                <tr><th>Timestamp</th><td>${new Date(evt.time).toISOString()}</td></tr>
+                                <tr><th>Source</th><td>EONET PLATFORM</td></tr>
+                            </tbody></table>
+                        </div>`,
                     billboard: {
                         // Generate a simple circular icon or use a colored dot if no image
                         image: createColoredCanvas(color.toCssColorString()),

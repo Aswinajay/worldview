@@ -2,10 +2,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import * as Cesium from 'cesium';
 import * as satellite from 'satellite.js';
 
+// Store sampled properties for interpolation
+const satCache = {};
+
 const SatelliteLayer = ({ viewer, active, onCount, onLayerState }) => {
     const [tleData, setTleData] = useState([]);
     const dataSourceRef = useRef(null);
-    const animFrameRef = useRef(null);
+    const updateIntervalRef = useRef(null);
 
     useEffect(() => {
         if (!active) {
@@ -18,7 +21,6 @@ const SatelliteLayer = ({ viewer, active, onCount, onLayerState }) => {
             try {
                 const res = await fetch('/api/satellites');
                 const data = await res.json();
-                console.log(`[SatelliteLayer] Received ${data.length} TLE records`);
                 setTleData(data);
                 if (onLayerState) onLayerState('satellites', 'live');
             } catch (err) {
@@ -37,142 +39,113 @@ const SatelliteLayer = ({ viewer, active, onCount, onLayerState }) => {
                 viewer.dataSources.remove(dataSourceRef.current);
                 dataSourceRef.current = null;
             }
-            cancelAnimationFrame(animFrameRef.current);
+            if (updateIntervalRef.current) clearInterval(updateIntervalRef.current);
+            // Clear cache
+            Object.keys(satCache).forEach(k => delete satCache[k]);
             if (onCount) onCount(0);
             return;
         }
 
         const init = async () => {
             if (!dataSourceRef.current) {
-                dataSourceRef.current = new Cesium.CustomDataSource('satellites');
-                await viewer.dataSources.add(dataSourceRef.current);
+                const ds = new Cesium.CustomDataSource('satellites');
+                dataSourceRef.current = ds;
+                await viewer.dataSources.add(ds);
             }
             const ds = dataSourceRef.current;
-            ds.entities.removeAll();
 
-            // Build sat records — try TLE_LINE1/2 first, then fall back to OMM fields
+            // Build sat records
             const satRecords = [];
             tleData.forEach(sat => {
                 try {
-                    let satrec = null;
-
                     if (sat.TLE_LINE1 && sat.TLE_LINE2) {
-                        satrec = satellite.twoline2satrec(sat.TLE_LINE1, sat.TLE_LINE2);
-                    } else if (sat.MEAN_MOTION !== undefined && sat.ECCENTRICITY !== undefined) {
-                        // OMM format parsing (often returned by CelesTrak JSON GP)
-                        // satellite.js Twoline2Satrec expects TLE lines, but we can synthesize or use jsonToSatrec if available
-                        // Since many APIs provide this, we convert it or skip.
-                        // For now we rely on the backend providing TLE_LINE1/2 but fix the check
-                        return;
-                    }
-
-                    if (satrec && satrec.error === 0) {
-                        // Color by group
-                        let color = '#00d2ff';
-                        const name = (sat.OBJECT_NAME || 'Unknown').toUpperCase();
-                        if (sat.group === 'GPS' || name.includes('NAVSTAR')) color = '#ffffff';
-                        else if (name.includes('STARLINK')) color = '#00e676';
-                        else if (name.includes('ISS')) color = '#ff4081';
-                        else if (name.includes('MAXAR') || name.includes('WORLDVIEW') || name.includes('GEOEYE')) color = '#ffd740';
-                        else if (name.includes('CAPELLA')) color = '#e040fb';
-                        else color = sat.color || '#00d2ff';
-
-                        satRecords.push({
-                            satrec,
-                            name: sat.OBJECT_NAME || 'Unknown',
-                            group: sat.group || 'Active',
-                            color,
-                            noradId: sat.NORAD_CAT_ID
-                        });
-                    }
-                } catch (e) { /* skip invalid */ }
-            });
-
-            console.log(`[SatelliteLayer] Successfully parsed ${satRecords.length} satellites`);
-            if (onCount) onCount(satRecords.length);
-
-            // Render up to 200 for performance
-            const limited = satRecords.slice(0, 200);
-
-            // Create entities with initial positions
-            const now = new Date();
-            const gmst = satellite.gstime(now);
-
-            limited.forEach((sat, i) => {
-                let lon = 0, lat = 0, alt = 400000;
-                try {
-                    const posVel = satellite.propagate(sat.satrec, now);
-                    if (posVel.position) {
-                        const geo = satellite.eciToGeodetic(posVel.position, gmst);
-                        lon = satellite.degreesLong(geo.longitude);
-                        lat = satellite.degreesLat(geo.latitude);
-                        alt = geo.height * 1000;
+                        const satrec = satellite.twoline2satrec(sat.TLE_LINE1, sat.TLE_LINE2);
+                        if (satrec && satrec.error === 0) {
+                            satRecords.push({
+                                satrec,
+                                name: sat.OBJECT_NAME || 'Unknown',
+                                color: sat.color || '#ffffff',
+                                group: sat.group || 'Active',
+                                noradId: sat.NORAD_CAT_ID
+                            });
+                        }
                     }
                 } catch (e) { }
-
-                const cesiumColor = Cesium.Color.fromCssColorString(sat.color).withAlpha(0.9);
-                ds.entities.add({
-                    id: `sat-${sat.noradId || i}`,
-                    name: sat.name,
-                    position: Cesium.Cartesian3.fromDegrees(lon, lat, alt),
-                    description: `
-                        <table class="cesium-infoBox-defaultTable"><tbody>
-                            <tr><th>Name</th><td>${sat.name}</td></tr>
-                            <tr><th>NORAD ID</th><td>${sat.noradId || 'N/A'}</td></tr>
-                            <tr><th>Group</th><td>${sat.group}</td></tr>
-                            <tr><th>Altitude</th><td>${Math.round(alt / 1000)} km</td></tr>
-                        </tbody></table>`,
-                    point: {
-                        pixelSize: 5, color: cesiumColor,
-                        outlineColor: cesiumColor.withAlpha(0.4), outlineWidth: 2,
-                        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 50000000)
-                    },
-                    label: {
-                        text: sat.name, font: '9px monospace',
-                        fillColor: cesiumColor,
-                        outlineColor: Cesium.Color.BLACK, outlineWidth: 1,
-                        style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                        pixelOffset: new Cesium.Cartesian2(8, 0),
-                        distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 5000000)
-                    }
-                });
             });
 
-            // Animation loop — update positions every 500ms instead of every frame for perf
-            let lastUpdate = 0;
-            const propagate = (timestamp) => {
-                if (timestamp - lastUpdate < 500) {
-                    animFrameRef.current = requestAnimationFrame(propagate);
-                    return;
-                }
-                lastUpdate = timestamp;
+            const limited = satRecords.slice(0, 300);
+            if (onCount) onCount(limited.length);
 
+            const satSvg = `data:image/svg+xml;base64,${btoa(`
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+                    <filter id="glow"><feGaussianBlur stdDeviation="1.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                    <path d="M12 2L4.5 9h15L12 2zm0 20l7.5-7h-15l7.5 7zm-5-10.5h10V10H7v1.5z" fill="white" filter="url(#glow)"/>
+                </svg>
+            `)}`;
+
+            const updatePositions = () => {
                 const now = new Date();
+                const julianNow = Cesium.JulianDate.fromDate(now);
                 const gmst = satellite.gstime(now);
 
-                limited.forEach((sat, i) => {
+                limited.forEach((sat) => {
                     try {
                         const posVel = satellite.propagate(sat.satrec, now);
                         if (!posVel.position) return;
                         const geo = satellite.eciToGeodetic(posVel.position, gmst);
-                        const lon = satellite.degreesLong(geo.longitude);
-                        const lat = satellite.degreesLat(geo.latitude);
-                        const alt = geo.height * 1000;
+                        const pos = Cesium.Cartesian3.fromDegrees(
+                            satellite.degreesLong(geo.longitude),
+                            satellite.degreesLat(geo.latitude),
+                            geo.height * 1000
+                        );
 
-                        const entity = ds.entities.getById(`sat-${sat.noradId || i}`);
-                        if (entity) {
-                            entity.position = Cesium.Cartesian3.fromDegrees(lon, lat, alt);
+                        const id = `sat-${sat.noradId}`;
+                        if (!satCache[id]) {
+                            satCache[id] = new Cesium.SampledPositionProperty();
+                            satCache[id].forwardExtrapolationType = Cesium.ExtrapolationType.EXTRAPOLATE;
+                        }
+                        satCache[id].addSample(julianNow, pos);
+
+                        let entity = ds.entities.getById(id);
+                        if (!entity) {
+                            const cesiumColor = Cesium.Color.fromCssColorString(sat.color);
+                            entity = ds.entities.add({
+                                id, name: sat.name,
+                                position: satCache[id],
+                                billboard: {
+                                    image: satSvg, width: 14, height: 14, color: cesiumColor,
+                                    distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 80000000)
+                                },
+                                label: {
+                                    text: sat.name, font: 'bold 9px monospace', fillColor: cesiumColor,
+                                    outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
+                                    style: Cesium.LabelStyle.FILL_AND_OUTLINE, pixelOffset: new Cesium.Cartesian2(10, 0),
+                                    distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 8000000)
+                                },
+                                description: `
+                                    <div class="tactical-info">
+                                        <div style="font-weight:700; color:${cesiumColor.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1)">
+                                            ${sat.name}
+                                        </div>
+                                        <table class="cesium-infoBox-defaultTable"><tbody>
+                                            <tr><th>NORAD</th><td>${sat.noradId}</td></tr>
+                                            <tr><th>Category</th><td>${sat.group}</td></tr>
+                                            <tr><th>Alt</th><td>${Math.round(geo.height)} KM</td></tr>
+                                            <tr><th>Status</th><td>ORBITAL NOMINAL</td></tr>
+                                        </tbody></table>
+                                    </div>`
+                            });
                         }
                     } catch (e) { }
                 });
-
-                animFrameRef.current = requestAnimationFrame(propagate);
             };
-            animFrameRef.current = requestAnimationFrame(propagate);
+
+            updatePositions();
+            updateIntervalRef.current = setInterval(updatePositions, 1000);
         };
 
         init();
-        return () => cancelAnimationFrame(animFrameRef.current);
+        return () => { if (updateIntervalRef.current) clearInterval(updateIntervalRef.current); };
     }, [viewer, tleData, active]);
 
     return null;

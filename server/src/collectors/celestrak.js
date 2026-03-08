@@ -7,80 +7,59 @@ const TLE_CACHE_PATH = path.resolve(__dirname, '../../data/tle_cache.json');
 
 // Satellite groups to fetch from CelesTrak
 const GROUPS = [
-    { name: 'ISS', url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=json', color: '#ff4081' },
-    { name: 'Starlink', url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=json', color: '#00e676' },
-    { name: 'GPS', url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=json', color: '#ffffff' },
-    { name: 'Active Satellites', url: 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json', color: '#00d2ff' },
+    { id: 'stations', name: 'ISS/Stations', color: '#ff4081' },
+    { id: 'starlink', name: 'Starlink', color: '#00e676', limit: 100 },
+    { id: 'gps-ops', name: 'GPS', color: '#00d2ff' },
+    { id: 'weather', name: 'Weather', color: '#ffd740' },
+    { id: 'noaa', name: 'NOAA', color: '#ff9100' },
+    { id: 'goes', name: 'GOES', color: '#ffea00' },
+    { id: 'resource', name: 'Earth Resources', color: '#76ff03' },
+    { id: 'science', name: 'Science', color: '#e040fb' },
+    { id: 'visual', name: 'Brightest', color: '#ffffff' }
 ];
 
-const fetchJSON = async (url) => {
-    // Try celestrak.com first as it has different Cloudflare rules than .org
-    const res = await fetch(url.replace('.org', '.com'), {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
-        },
-        timeout: 20000 // 20s timeout
-    });
-    if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+const fetchGroup = async (group) => {
+    const url = `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group.id}&FORMAT=json`;
+    try {
+        const res = await fetch(url.replace('.org', '.com'), {
+            headers: {
+                'User-Agent': 'WorldView/1.0',
+                'Accept': 'application/json'
+            },
+            timeout: 15000
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (!Array.isArray(data)) return [];
+
+        const processed = data.slice(0, group.limit || 50).map(s => ({
+            ...s,
+            group: group.name,
+            color: group.color
+        }));
+
+        console.log(`  [Satellite] Fetched ${processed.length} assets for ${group.name}`);
+        return processed;
+    } catch (err) {
+        console.error(`  [Satellite] Failed to fetch ${group.name}: ${err.message}`);
+        return [];
     }
-    return await res.json();
 };
 
 const fetchTLEs = async () => {
-    console.log(`[${new Date().toISOString()}] Fetching TLE data from CelesTrak...`);
+    console.log(`[${new Date().toISOString()}] Initiating global satellite TLE sync...`);
     try {
-        const satellites = [];
+        const results = await Promise.all(GROUPS.map(g => fetchGroup(g)));
+        const allSatellites = results.flat();
 
-        // Fetch ISS / Space Stations
-        try {
-            const issData = await fetchJSON(GROUPS[0].url);
-            if (Array.isArray(issData)) {
-                satellites.push(...issData.map(s => ({ ...s, group: 'ISS', color: '#ff4081' })));
-                console.log(`  ISS/Stations: ${issData.length} entries`);
-            } else {
-                console.error('  ISS data is not an array:', typeof issData);
-            }
-        } catch (e) {
-            console.error('  Could not fetch ISS data:', e.message);
-        }
-
-        // Fetch GPS constellation
-        try {
-            const gpsData = await fetchJSON(GROUPS[2].url);
-            if (Array.isArray(gpsData)) {
-                satellites.push(...gpsData.map(s => ({ ...s, group: 'GPS', color: '#ffffff' })));
-                console.log(`  GPS: ${gpsData.length} entries`);
-            }
-        } catch (e) { console.error('  Could not fetch GPS data:', e.message); }
-
-        // Fetch Starlink
-        try {
-            const starlinkData = await fetchJSON(GROUPS[1].url);
-            if (Array.isArray(starlinkData)) {
-                const limited = starlinkData.slice(0, 75);
-                satellites.push(...limited.map(s => ({ ...s, group: 'Starlink', color: '#00e676' })));
-                console.log(`  Starlink: ${limited.length} entries`);
-            }
-        } catch (e) { console.error('  Could not fetch Starlink data:', e.message); }
-
-        // Fetch active satellites
-        try {
-            const activeData = await fetchJSON(GROUPS[3].url);
-            if (Array.isArray(activeData)) {
-                const limited = activeData.slice(0, 100);
-                satellites.push(...limited.map(s => ({ ...s, group: 'Active', color: '#00d2ff' })));
-                console.log(`  Active: ${limited.length} entries`);
-            }
-        } catch (e) { console.error('  Could not fetch active satellites:', e.message); }
-
-        if (satellites.length > 0) {
-            fs.writeFileSync(TLE_CACHE_PATH, JSON.stringify(satellites, null, 2));
-            console.log(`Cached ${satellites.length} satellite TLEs total.`);
+        if (allSatellites.length > 0) {
+            fs.writeFileSync(TLE_CACHE_PATH, JSON.stringify(allSatellites, null, 2));
+            console.log(`Orbital database synchronized: ${allSatellites.length} active assets cached.`);
         }
     } catch (err) {
-        console.error('Error fetching TLEs:', err.message);
+        console.error('Critical error in satellite sync:', err.message);
     }
 };
 

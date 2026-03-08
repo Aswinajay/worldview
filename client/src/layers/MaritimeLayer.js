@@ -3,10 +3,13 @@ import * as Cesium from 'cesium';
 
 // Store sampled properties for interpolation
 const vesselCache = {};
+const shipTrailHistory = {};
+const MAX_TRAIL_POINTS = 20;
 
 const MaritimeLayer = ({ viewer, active, onCount, onLayerState, viewBbox }) => {
     const [ships, setShips] = useState([]);
     const dataSourceRef = useRef(null);
+    const trailDataSourceRef = useRef(null);
 
     useEffect(() => {
         if (!active) {
@@ -48,8 +51,13 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState, viewBbox }) => {
                 viewer.dataSources.remove(dataSourceRef.current);
                 dataSourceRef.current = null;
             }
+            if (trailDataSourceRef.current) {
+                viewer.dataSources.remove(trailDataSourceRef.current);
+                trailDataSourceRef.current = null;
+            }
             // Clear cache
             Object.keys(vesselCache).forEach(k => delete vesselCache[k]);
+            Object.keys(shipTrailHistory).forEach(k => delete shipTrailHistory[k]);
             return;
         }
 
@@ -77,8 +85,15 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState, viewBbox }) => {
                 await viewer.dataSources.add(ds);
             }
 
+            if (!trailDataSourceRef.current) {
+                trailDataSourceRef.current = new Cesium.CustomDataSource('maritime-trails');
+                await viewer.dataSources.add(trailDataSourceRef.current);
+            }
+
             const ds = dataSourceRef.current;
+            const trailDs = trailDataSourceRef.current;
             const updatedIds = new Set();
+            const updatedTrailIds = new Set();
             const now = viewer.clock.currentTime;
 
             ships.forEach(ship => {
@@ -87,67 +102,132 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState, viewBbox }) => {
                 const id = `ship-${mmsi}`;
                 updatedIds.add(id);
 
-                let color = Cesium.Color.CYAN;
-                if (ship.ship_type === 'Tanker') color = Cesium.Color.ORANGE;
-                else if (ship.ship_type === 'Cargo') color = Cesium.Color.YELLOW;
-                else if (ship.ship_type === 'Passenger') color = Cesium.Color.MAGENTA;
+                let color = Cesium.Color.fromCssColorString('#00ffff');
+                let shipData = { icon: 'M4 16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8H4v8z', label: 'Vessel' };
+
+                if (ship.ship_type === 'Tanker') {
+                    color = Cesium.Color.fromCssColorString('#ff9800');
+                    shipData.icon = 'M18 15V8l-6-5-6 5v7c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2z';
+                } else if (ship.ship_type === 'Cargo') {
+                    color = Cesium.Color.fromCssColorString('#ffeb3b');
+                    shipData.icon = 'M3 15h18v-2H3v2zm0 4h18v-2H3v2zm0-8h18V9H3v2zm0-4h18V5H3v2z';
+                } else if (ship.ship_type === 'Passenger') {
+                    color = Cesium.Color.fromCssColorString('#e91e63');
+                    shipData.icon = 'M20 18c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16z';
+                }
 
                 const position = Cesium.Cartesian3.fromDegrees(ship.longitude, ship.latitude, 0);
+                const speedKnots = (ship.speed || 0);
+                const speedMs = speedKnots * 0.514444;
+                const headingDeg = (ship.heading || 0);
+                const headingRad = Cesium.Math.toRadians(headingDeg);
 
                 if (!vesselCache[mmsi]) {
                     vesselCache[mmsi] = {
                         sampledPosition: new Cesium.SampledPositionProperty(),
                     };
                     vesselCache[mmsi].sampledPosition.forwardExtrapolationType = Cesium.ExtrapolationType.EXTRAPOLATE;
-                    vesselCache[mmsi].sampledPosition.forwardExtrapolationDuration = 60;
+                    vesselCache[mmsi].sampledPosition.forwardExtrapolationDuration = 120;
                 }
-                vesselCache[mmsi].sampledPosition.addSample(now, position);
+
+                const cache = vesselCache[mmsi];
+                cache.sampledPosition.addSample(now, position);
+
+                // Prediction kick
+                if (speedMs > 0.1) {
+                    const futureSec = 5;
+                    const latOffset = (speedMs * Math.cos(headingRad) * futureSec) / 111111;
+                    const lonOffset = (speedMs * Math.sin(headingRad) * futureSec) / (111111 * Math.cos(Cesium.Math.toRadians(ship.latitude)));
+                    const futurePos = Cesium.Cartesian3.fromDegrees(ship.longitude + lonOffset, ship.latitude + latOffset, 0);
+                    const futureTime = Cesium.JulianDate.addSeconds(now, futureSec, new Cesium.JulianDate());
+                    cache.sampledPosition.addSample(futureTime, futurePos);
+                }
 
                 const shipSvg = `data:image/svg+xml;base64,${btoa(`
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white">
-                        <path d="M4 16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8H4v8zM19 6V2h-2v4h-2V2h-2v4h-2V2h-2v4H9V2H7v4H5V4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6h-2z"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+                        <filter id="glow"><feGaussianBlur stdDeviation="1.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                        <path d="${shipData.icon}" fill="white" filter="url(#glow)"/>
                     </svg>
                 `)}`;
 
                 const description = `
-                    <table class="cesium-infoBox-defaultTable"><tbody>
-                        <tr><th>Name</th><td>${ship.ship_name}</td></tr>
-                        <tr><th>Type</th><td>${ship.ship_type}</td></tr>
-                        <tr><th>MMSI</th><td>${ship.mmsi}</td></tr>
-                        <tr><th>Speed</th><td>${ship.speed ? ship.speed.toFixed(1) + ' kn' : 'N/A'}</td></tr>
-                        <tr><th>Heading</th><td>${ship.heading ? Math.round(ship.heading) + '°' : 'N/A'}</td></tr>
-                    </tbody></table>`;
+                    <div class="tactical-info">
+                        <div style="font-weight:700; color:${color.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1)">
+                            ${ship.ship_name || 'UNKNOWN VESSEL'}
+                        </div>
+                        <table class="cesium-infoBox-defaultTable"><tbody>
+                            <tr><th>MMSI</th><td>${mmsi}</td></tr>
+                            <tr><th>Type</th><td>${ship.ship_type || 'Unknown'}</td></tr>
+                            <tr><th>Speed</th><td>${speedKnots.toFixed(1)} KN</td></tr>
+                            <tr><th>Heading</th><td>${Math.round(headingDeg)}°</td></tr>
+                        </tbody></table>
+                    </div>`;
+
+                // Accumulate trail history
+                if (!shipTrailHistory[mmsi]) shipTrailHistory[mmsi] = [];
+                const lastEntry = shipTrailHistory[mmsi][shipTrailHistory[mmsi].length - 1];
+                if (!lastEntry ||
+                    Math.abs(lastEntry.lon - ship.longitude) > 0.0001 ||
+                    Math.abs(lastEntry.lat - ship.latitude) > 0.0001) {
+                    shipTrailHistory[mmsi].push({ lon: ship.longitude, lat: ship.latitude });
+                    if (shipTrailHistory[mmsi].length > MAX_TRAIL_POINTS) shipTrailHistory[mmsi].shift();
+                }
 
                 const entity = ds.entities.getById(id);
                 if (entity) {
-                    entity.position = vesselCache[mmsi].sampledPosition;
-                    entity.orientation = new Cesium.VelocityOrientationProperty(vesselCache[mmsi].sampledPosition);
+                    entity.position = cache.sampledPosition;
+                    entity.orientation = new Cesium.VelocityOrientationProperty(cache.sampledPosition);
                     entity.description = description;
                     entity.billboard.color = color;
                 } else {
                     ds.entities.add({
                         id,
                         name: ship.ship_name || ship.mmsi,
-                        position: vesselCache[mmsi].sampledPosition,
-                        orientation: new Cesium.VelocityOrientationProperty(vesselCache[mmsi].sampledPosition),
+                        position: cache.sampledPosition,
+                        orientation: new Cesium.VelocityOrientationProperty(cache.sampledPosition),
                         description,
                         billboard: {
                             image: shipSvg,
-                            width: 18,
-                            height: 18,
+                            width: 22,
+                            height: 22,
                             color: color,
-                            alignedAxis: new Cesium.VelocityVectorProperty(vesselCache[mmsi].sampledPosition, true),
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 15000000)
+                            alignedAxis: new Cesium.VelocityVectorProperty(cache.sampledPosition, true),
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 10000000)
                         },
                         label: {
-                            text: ship.ship_name || '', font: '11px monospace',
+                            text: ship.ship_name || '', font: 'bold 11px monospace',
                             fillColor: color,
                             outlineColor: Cesium.Color.BLACK, outlineWidth: 2,
                             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                            pixelOffset: new Cesium.Cartesian2(0, 18),
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 5000000)
+                            pixelOffset: new Cesium.Cartesian2(0, 20),
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1000000)
                         }
                     });
+                }
+
+                // Render Trails
+                const trailId = `trail-ship-${mmsi}`;
+                updatedTrailIds.add(trailId);
+                const trail = shipTrailHistory[mmsi];
+                if (trail && trail.length >= 2) {
+                    const trailPositions = trail.map(p => Cesium.Cartesian3.fromDegrees(p.lon, p.lat, 0));
+                    const trailEntity = trailDs.entities.getById(trailId);
+                    if (trailEntity) {
+                        trailEntity.polyline.positions = trailPositions;
+                    } else {
+                        trailDs.entities.add({
+                            id: trailId,
+                            polyline: {
+                                positions: trailPositions,
+                                width: 2,
+                                material: new Cesium.PolylineDashMaterialProperty({
+                                    color: color.withAlpha(0.5),
+                                    dashLength: 16
+                                }),
+                                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 5000000)
+                            }
+                        });
+                    }
                 }
             });
 
@@ -157,6 +237,10 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState, viewBbox }) => {
                 ds.entities.removeById(id);
                 delete vesselCache[id.replace('ship-', '')];
             });
+
+            const trailsToRemove = [];
+            trailDs.entities.values.forEach(e => { if (!updatedTrailIds.has(e.id)) trailsToRemove.push(e.id); });
+            trailsToRemove.forEach(id => trailDs.entities.removeById(id));
         };
         render();
     }, [viewer, ships, active]);

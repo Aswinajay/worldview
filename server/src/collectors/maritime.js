@@ -8,16 +8,30 @@ const fetchMaritime = async () => {
     console.log(`[${new Date().toISOString()}] Fetching real-time maritime AIS data from Digitraffic...`);
 
     try {
-        const res = await fetch(AIS_URL, {
-            headers: {
-                'Accept-Encoding': 'gzip',
-                'User-Agent': 'WorldView/1.0'
-            },
-            timeout: 30000 // 30s timeout
-        });
+        const attempts = 3;
+        let res;
+        for (let i = 0; i < attempts; i++) {
+            try {
+                res = await fetch(AIS_URL, {
+                    headers: {
+                        'Accept-Encoding': 'gzip',
+                        'User-Agent': 'WorldView/1.0'
+                    },
+                    timeout: 20000 // 20s
+                });
+                if (res.ok) break;
+                console.warn(`[Maritime] Retry ${i + 1}/${attempts} - HTTP ${res.status}`);
+            } catch (e) {
+                console.warn(`[Maritime] Retry ${i + 1}/${attempts} - ${e.message}`);
+            }
+            if (i < attempts - 1) {
+                const wait = Math.pow(2, i) * 1000;
+                await new Promise(r => setTimeout(r, wait));
+            }
+        }
 
-        if (!res.ok) {
-            console.error(`AIS digitraffic HTTP ${res.status}`);
+        if (!res || !res.ok) {
+            console.error('Failed to fetch maritime data after retries');
             return;
         }
 

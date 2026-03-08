@@ -114,68 +114,81 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState, viewB
 
                 const altitude = (typeof flight.altitude === 'number' && !isNaN(flight.altitude)) ? flight.altitude : 10000;
                 const position = Cesium.Cartesian3.fromDegrees(flight.longitude, flight.latitude, altitude);
-                const heading = Cesium.Math.toRadians(flight.heading || 0);
+                const velocity = (flight.velocity || 0); // m/s
+                const headingDeg = (flight.heading || 0);
+                const headingRad = Cesium.Math.toRadians(headingDeg);
 
-                // --- Predicted Movement Architecture ---
+                // --- Advanced Trajectory Prediction ---
                 if (!flightCache[icao]) {
                     flightCache[icao] = {
                         sampledPosition: new Cesium.SampledPositionProperty(),
-                        lastUpdate: now
                     };
-                    // Forward extrapolation: Allow the entity to move ahead if we haven't received data for a while
                     flightCache[icao].sampledPosition.forwardExtrapolationType = Cesium.ExtrapolationType.EXTRAPOLATE;
-                    flightCache[icao].sampledPosition.forwardExtrapolationDuration = 30; // 30 seconds of forward movement
+                    flightCache[icao].sampledPosition.forwardExtrapolationDuration = 60;
                 }
 
                 const cache = flightCache[icao];
+                // Add the actual current sample
                 cache.sampledPosition.addSample(now, position);
+
+                // Add a "kick" sample 1 second in the future for smooth extrapolation if velocity is available
+                if (velocity > 0) {
+                    const futureSec = 1;
+                    // Rough approximation for small distances
+                    const latOffset = (velocity * Math.cos(headingRad) * futureSec) / 111111;
+                    const lonOffset = (velocity * Math.sin(headingRad) * futureSec) / (111111 * Math.cos(Cesium.Math.toRadians(flight.latitude)));
+                    const futurePos = Cesium.Cartesian3.fromDegrees(
+                        flight.longitude + lonOffset,
+                        flight.latitude + latOffset,
+                        altitude
+                    );
+                    const futureTime = Cesium.JulianDate.addSeconds(now, futureSec, new Cesium.JulianDate());
+                    cache.sampledPosition.addSample(futureTime, futurePos);
+                }
 
                 // Accumulate trail history
                 if (!trailHistory[icao]) trailHistory[icao] = [];
                 const lastEntry = trailHistory[icao][trailHistory[icao].length - 1];
                 if (!lastEntry ||
-                    Math.abs(lastEntry.lon - flight.longitude) > 0.001 ||
-                    Math.abs(lastEntry.lat - flight.latitude) > 0.001) {
+                    Math.abs(lastEntry.lon - flight.longitude) > 0.0005 ||
+                    Math.abs(lastEntry.lat - flight.latitude) > 0.0005) {
 
                     trailHistory[icao].push({
-                        lon: flight.longitude,
-                        lat: flight.latitude,
-                        alt: altitude,
-                        time: Date.now()
+                        lon: flight.longitude, lat: flight.latitude, alt: altitude
                     });
-
-                    if (trailHistory[icao].length > MAX_TRAIL_POINTS) {
-                        trailHistory[icao] = trailHistory[icao].slice(-MAX_TRAIL_POINTS);
-                    }
+                    if (trailHistory[icao].length > MAX_TRAIL_POINTS) trailHistory[icao].shift();
                 }
 
-                let color = Cesium.Color.DODGERBLUE;
-                if (altitude > 10000) color = Cesium.Color.CRIMSON;
-                else if (altitude > 7000) color = Cesium.Color.GOLD;
-                else if (altitude > 3000) color = Cesium.Color.LIMEGREEN;
+                // Dynamic Colors for Radar Aesthetics
+                let color = Cesium.Color.fromCssColorString('#00d2ff');
+                if (altitude > 11000) color = Cesium.Color.fromCssColorString('#ff4081'); // High level (Pink)
+                else if (altitude > 8000) color = Cesium.Color.fromCssColorString('#ffd740'); // Mid level (Gold)
+                else if (altitude < 1000) color = Cesium.Color.fromCssColorString('#ffffff'); // Landing/Takeoff (White)
 
                 const description = `
-                    <table class="cesium-infoBox-defaultTable"><tbody>
-                        <tr><th>Callsign</th><td>${flight.callsign || 'Unknown'}</td></tr>
-                        <tr><th>ICAO24</th><td>${icao}</td></tr>
-                        <tr><th>Country</th><td>${flight.origin_country || 'Unknown'}</td></tr>
-                        <tr><th>Altitude</th><td>${altitude ? Math.round(altitude) + ' m (' + Math.round(altitude * 3.28084) + ' ft)' : 'N/A'}</td></tr>
-                        <tr><th>Velocity</th><td>${flight.velocity ? Math.round(flight.velocity * 3.6) + ' km/h (' + Math.round(flight.velocity * 1.94384) + ' kn)' : 'Level'}</td></tr>
-                        <tr><th>Heading</th><td>${flight.heading ? Math.round(flight.heading) + '°' : 'N/A'}</td></tr>
-                        <tr><th>Vertical Rate</th><td>${flight.vertical_rate ? (flight.vertical_rate > 0 ? '↑' : '↓') + ' ' + Math.abs(Math.round(flight.vertical_rate)) + ' m/s' : 'Level'}</td></tr>
-                        <tr><th>On Ground</th><td>${flight.on_ground ? 'Yes' : 'No'}</td></tr>
-                    </tbody></table>`;
+                    <div class="tactical-info">
+                        <div style="font-weight:700; color:${color.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1)">
+                            ${flight.callsign || 'N/A'} [${icao}]
+                        </div>
+                        <table class="cesium-infoBox-defaultTable"><tbody>
+                            <tr><th>Altitude</th><td>${Math.round(altitude * 3.28084).toLocaleString()} FT</td></tr>
+                            <tr><th>Speed</th><td>${Math.round(velocity * 1.94384)} KN</td></tr>
+                            <tr><th>Heading</th><td>${Math.round(headingDeg)}°</td></tr>
+                            <tr><th>Source</th><td>ADS-B REALTIME</td></tr>
+                        </tbody></table>
+                    </div>`;
 
                 const planeSvg = `data:image/svg+xml;base64,${btoa(`
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="white">
-                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24">
+                        <filter id="glow"><feGaussianBlur stdDeviation="1.5" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+                        <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" 
+                              fill="white" filter="url(#glow)"/>
                     </svg>
                 `)}`;
 
                 const entity = ds.entities.getById(id);
                 if (entity) {
                     entity.position = cache.sampledPosition;
-                    // Automatically orient based on movement direction
                     entity.orientation = new Cesium.VelocityOrientationProperty(cache.sampledPosition);
                     entity.description = description;
                     entity.billboard.color = color;
@@ -187,23 +200,21 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState, viewB
                         description,
                         billboard: {
                             image: planeSvg,
-                            width: 24,
-                            height: 24,
+                            width: 28,
+                            height: 28,
                             color: color,
-                            // rotation: rotation is now handled by orientation property normally, 
-                            // but billboard rotation is 2D. We use alignedAxis for 3D billboards.
                             alignedAxis: new Cesium.VelocityVectorProperty(cache.sampledPosition, true),
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 8000000)
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 10000000)
                         },
                         label: {
                             text: flight.callsign || '',
-                            font: '10px monospace',
-                            fillColor: Cesium.Color.WHITE,
+                            font: 'bold 10px monospace',
+                            fillColor: color,
                             outlineColor: Cesium.Color.BLACK,
                             outlineWidth: 2,
                             style: Cesium.LabelStyle.FILL_AND_OUTLINE,
-                            pixelOffset: new Cesium.Cartesian2(0, 20),
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1500000)
+                            pixelOffset: new Cesium.Cartesian2(0, 24),
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1000000)
                         }
                     });
                 }

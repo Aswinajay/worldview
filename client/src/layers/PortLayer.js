@@ -36,12 +36,17 @@ const PortLayer = ({ viewer, active, onLayerState, onCount }) => {
                         name: port.name,
                         position: Cesium.Cartesian3.fromDegrees(port.longitude, port.latitude, 0),
                         description: `
-                            <table class="cesium-infoBox-defaultTable"><tbody>
-                                <tr><th>City</th><td>${port.city}</td></tr>
-                                <tr><th>Country</th><td>${port.country}</td></tr>
-                                <tr><th>UN Locode</th><td>${port.code}</td></tr>
-                                <tr><th>Type</th><td>Strategic Maritime Hub</td></tr>
-                            </tbody></table>`,
+                            <div class="tactical-info">
+                                <div style="font-weight:700; color:#00d2ff; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1)">
+                                    MARITIME HUB: ${port.name.toUpperCase()}
+                                </div>
+                                <table class="cesium-infoBox-defaultTable"><tbody>
+                                    <tr><th>City</th><td>${port.city}</td></tr>
+                                    <tr><th>Country</th><td>${port.country}</td></tr>
+                                    <tr><th>LOCODE</th><td>${port.code}</td></tr>
+                                    <tr><th>Status</th><td>NOMINAL PORT OPS</td></tr>
+                                </tbody></table>
+                            </div>`,
                         point: {
                             color: Cesium.Color.fromCssColorString('#00d2ff'),
                             pixelSize: 8,

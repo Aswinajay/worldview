@@ -37,10 +37,16 @@ const MaritimeRouteLayer = ({ viewer, active, onLayerState }) => {
                     ds.entities.add({
                         name: `${lane.origin_city} ↔ ${lane.dest_city}`,
                         description: `
-                            <table class="cesium-infoBox-defaultTable"><tbody>
-                                <tr><th>Route</th><td>${lane.origin_city} to ${lane.dest_city}</td></tr>
-                                <tr><th>Usage</th><td>Primary Shipping Lane</td></tr>
-                            </tbody></table>`,
+                            <div class="tactical-info">
+                                <div style="font-weight:700; color:#00ffff; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1)">
+                                    SHIPPING LANE: ${lane.origin_city} / ${lane.dest_city}
+                                </div>
+                                <table class="cesium-infoBox-defaultTable"><tbody>
+                                    <tr><th>Origin</th><td>${lane.origin_city}</td></tr>
+                                    <tr><th>Destination</th><td>${lane.dest_city}</td></tr>
+                                    <tr><th>Status</th><td>NOMINAL FLOW</td></tr>
+                                </tbody></table>
+                            </div>`,
                         polyline: {
                             positions: [start, end],
                             width: 1.5,

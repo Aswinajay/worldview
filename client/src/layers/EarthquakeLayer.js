@@ -64,12 +64,21 @@ const EarthquakeLayer = ({ viewer, active, onCount, onLayerState }) => {
                     position: Cesium.Cartesian3.fromDegrees(quake.longitude, quake.latitude, 0), // Ignore depth for UI
                     name: quake.title,
                     description: `
-                        <table class="cesium-infoBox-defaultTable"><tbody>
-                            <tr><th>Magnitude</th><td>${quake.magnitude}</td></tr>
-                            <tr><th>Time</th><td>${new Date(quake.time).toUTCString()}</td></tr>
-                            <tr><th>Depth</th><td>${quake.depth} km</td></tr>
-                            <tr><th>Link</th><td><a href="${quake.url}" target="_blank">USGS Details</a></td></tr>
-                        </tbody></table>`,
+                        <div class="tactical-info">
+                            <div style="font-weight:700; color:${color.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1)">
+                                SEISMIC EVENT: ${quake.magnitude} MAG
+                            </div>
+                            <table class="cesium-infoBox-defaultTable"><tbody>
+                                <tr><th>Magnitude</th><td>${quake.magnitude}</td></tr>
+                                <tr><th>Location</th><td>${quake.place || 'Unknown'}</td></tr>
+                                <tr><th>Depth</th><td>${quake.depth} KM</td></tr>
+                                <tr><th>Time</th><td>${new Date(quake.time).toISOString().replace('T', ' ').substring(0, 19)}Z</td></tr>
+                                <tr><th>Source</th><td>USGS GEOLOGICAL</td></tr>
+                            </tbody></table>
+                            <div style="margin-top:10px; text-align:right">
+                                <a href="${quake.url}" target="_blank" style="color:var(--color-accent); text-decoration:none; font-size:10px">MISSION DATA →</a>
+                            </div>
+                        </div>`,
                     point: {
                         pixelSize,
                         color: color.withAlpha(0.8),

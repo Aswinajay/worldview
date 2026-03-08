@@ -13,16 +13,46 @@ const HUBS = [
 ];
 
 const fetchFlightsArea = async (lat, lon, dist = 250) => {
-    try {
-        const res = await fetch(`https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${dist}`, {
-            headers: { 'User-Agent': 'WorldView/1.0' },
-            timeout: 30000
-        });
-        if (!res.ok) {
-            console.error(`[Collector] ADSB.lol area scan failed: ${res.status} ${res.statusText}`);
-            return [];
+    const url = `https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${dist}`;
+    const options = {
+        headers: { 'User-Agent': 'WorldView/1.0' },
+        timeout: 20000 // 20s per attempt
+    };
+
+    let res;
+    let attempts = 4; // Increased to 4 attempts
+
+    for (let i = 0; i < attempts; i++) {
+        try {
+            const start = Date.now();
+            res = await fetch(url, options);
+            const duration = Date.now() - start;
+
+            if (res.ok) {
+                if (i > 0) console.log(`[Collector/ADSB] Recovered area ${lat},${lon} on attempt ${i + 1} (${duration}ms)`);
+                break;
+            }
+
+            console.warn(`[Collector/ADSB] Attempt ${i + 1} failed for ${lat},${lon}: HTTP ${res.status} (${duration}ms)`);
+        } catch (err) {
+            console.warn(`[Collector/ADSB] Attempt ${i + 1} errored for ${lat},${lon}: ${err.message}`);
+
+            if (i === attempts - 1) {
+                console.error(`[Collector/ADSB] Critical failure for area ${lat},${lon} after ${attempts} attempts. Last error: ${err.message}`);
+                return [];
+            }
         }
 
+        // Exponential backoff: 3s, 6s, 12s
+        if (i < attempts - 1) {
+            const wait = Math.pow(2, i) * 3000;
+            await new Promise(r => setTimeout(r, wait));
+        }
+    }
+
+    if (!res || !res.ok) return [];
+
+    try {
         const data = await res.json();
         if (data.ac && data.ac.length > 0) {
             const insertStmt = db.prepare(`
@@ -53,7 +83,7 @@ const fetchFlightsArea = async (lat, lon, dist = 250) => {
         }
         return [];
     } catch (err) {
-        console.error(`[Collector] Critical error scanning area ${lat},${lon}:`, err);
+        console.error(`[Collector] JSON Parse error for area ${lat},${lon}:`, err);
         return [];
     }
 };
