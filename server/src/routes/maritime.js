@@ -5,24 +5,36 @@ const db = require('../db/database');
 // GET /api/maritime - Returns ship positions
 router.get('/', (req, res) => {
     try {
-        const { time } = req.query;
+        const { time, west, south, east, north } = req.query;
         let ships;
+
+        const useBbox = west && south && east && north;
+        const bboxFilter = useBbox
+            ? `AND longitude BETWEEN ? AND ? AND latitude BETWEEN ? AND ?`
+            : '';
+        const params = useBbox
+            ? [parseFloat(west), parseFloat(east), parseFloat(south), parseFloat(north)]
+            : [];
 
         if (time) {
             const targetTime = new Date(time).toISOString();
-            ships = db.prepare(`
+            const query = `
                 SELECT * FROM maritime
                 WHERE timestamp BETWEEN datetime(?, '-30 seconds') AND datetime(?, '+30 seconds')
+                ${bboxFilter}
                 GROUP BY mmsi
                 HAVING MIN(ABS(strftime('%s', timestamp) - strftime('%s', ?)))
-            `).all(targetTime, targetTime, targetTime);
+            `;
+            ships = db.prepare(query).all(targetTime, targetTime, ...params, targetTime);
         } else {
-            ships = db.prepare(`
+            const query = `
                 SELECT * FROM maritime
                 WHERE timestamp > datetime('now', '-5 minutes')
+                ${bboxFilter}
                 GROUP BY mmsi
                 HAVING MAX(timestamp)
-            `).all();
+            `;
+            ships = db.prepare(query).all(...params);
         }
 
         res.json(ships);

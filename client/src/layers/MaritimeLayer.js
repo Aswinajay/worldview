@@ -4,7 +4,7 @@ import * as Cesium from 'cesium';
 // Store sampled properties for interpolation
 const vesselCache = {};
 
-const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
+const MaritimeLayer = ({ viewer, active, onCount, onLayerState, viewBbox }) => {
     const [ships, setShips] = useState([]);
     const dataSourceRef = useRef(null);
 
@@ -17,7 +17,13 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
         const fetchShips = async () => {
             if (onLayerState) onLayerState('maritime', 'loading');
             try {
-                const res = await fetch('/api/maritime');
+                let url = '/api/maritime?';
+                if (viewBbox) {
+                    const { west, south, east, north } = viewBbox;
+                    url += `west=${west}&south=${south}&east=${east}&north=${north}`;
+                }
+
+                const res = await fetch(url);
                 const data = await res.json();
                 setShips(data);
                 if (onCount) onCount(data.length);
@@ -30,7 +36,7 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
         fetchShips();
         const interval = setInterval(fetchShips, 30000);
         return () => clearInterval(interval);
-    }, [active]);
+    }, [active, viewBbox]);
 
     useEffect(() => {
         if (!viewer) return;

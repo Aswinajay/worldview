@@ -15,10 +15,11 @@ import PortLayer from '../layers/PortLayer';
 
 Cesium.Ion.defaultAccessToken = 'YOUR_CESIUM_ION_TOKEN';
 
-const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, onLayerState }) => {
+const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, onLayerState, onViewChange }) => {
     const cesiumContainer = useRef(null);
     const [viewer, setViewer] = useState(null);
     const selectedGroundLineRef = useRef(null);
+    const viewChangeTimeoutRef = useRef(null);
 
     useEffect(() => {
         if (!cesiumContainer.current || viewer) return;
@@ -43,6 +44,24 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, 
         v.scene.backgroundColor = Cesium.Color.fromCssColorString('#0a0a1a');
         v.scene.globe.baseColor = Cesium.Color.fromCssColorString('#1a1a2e');
 
+        // View Change Logic
+        const handleViewChange = () => {
+            if (viewChangeTimeoutRef.current) clearTimeout(viewChangeTimeoutRef.current);
+            viewChangeTimeoutRef.current = setTimeout(() => {
+                const rect = v.camera.computeViewRectangle();
+                if (rect && onViewChange) {
+                    onViewChange({
+                        west: Cesium.Math.toDegrees(rect.west),
+                        south: Cesium.Math.toDegrees(rect.south),
+                        east: Cesium.Math.toDegrees(rect.east),
+                        north: Cesium.Math.toDegrees(rect.north)
+                    });
+                }
+            }, 500); // 500ms debounce
+        };
+
+        v.camera.moveEnd.addEventListener(handleViewChange);
+
         // Selection Change Handler (Highlight selected + Ground Line)
         v.selectedEntityChanged.addEventListener((entity) => {
             if (selectedGroundLineRef.current) {
@@ -51,11 +70,10 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, 
             }
 
             if (entity && entity.position) {
-                // If it's an airborne asset (has altitude), draw a line to ground
                 const pos = entity.position.getValue(v.clock.currentTime);
                 if (pos) {
                     const cartographic = Cesium.Cartographic.fromCartesian(pos);
-                    if (cartographic.height > 100) { // Only if significantly above ground
+                    if (cartographic.height > 100) {
                         selectedGroundLineRef.current = v.entities.add({
                             name: 'Ground Track',
                             polyline: {
@@ -100,6 +118,7 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, 
         if (onViewerReady) onViewerReady(v);
 
         return () => {
+            if (viewChangeTimeoutRef.current) clearTimeout(viewChangeTimeoutRef.current);
             handler.destroy();
             v.destroy();
         };

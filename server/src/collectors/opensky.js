@@ -12,55 +12,55 @@ const HUBS = [
     { name: 'Frankfurt', lat: 50.1109, lon: 8.6821, dist: 250 }
 ];
 
+const fetchFlightsArea = async (lat, lon, dist = 250) => {
+    try {
+        const res = await fetch(`https://api.adsb.lol/v2/lat/${lat}/lon/${lon}/dist/${dist}`, {
+            headers: { 'User-Agent': 'WorldView/1.0' },
+            timeout: 10000
+        });
+        if (!res.ok) return [];
+
+        const data = await res.json();
+        if (data.ac && data.ac.length > 0) {
+            const insertStmt = db.prepare(`
+                INSERT OR REPLACE INTO flights (icao24, callsign, origin_country, longitude, latitude, altitude, velocity, heading)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+
+            const insertMany = db.transaction((records) => {
+                for (const flight of records) {
+                    if (flight.lon !== undefined && flight.lat !== undefined) {
+                        insertStmt.run(
+                            flight.hex,
+                            flight.flight ? flight.flight.trim() : '',
+                            'Unknown',
+                            flight.lon,
+                            flight.lat,
+                            flight.alt_baro || flight.alt_geom || 0,
+                            flight.gs || 0,
+                            flight.track || 0
+                        );
+                    }
+                }
+            });
+            insertMany(data.ac);
+            return data.ac;
+        }
+        return [];
+    } catch (err) {
+        console.error(`Error fetching flights for area ${lat},${lon}:`, err.message);
+        return [];
+    }
+};
+
 const fetchFlights = async () => {
     console.log(`[${new Date().toISOString()}] Fetching real-time ADS-B flight data...`);
-
-    const insertStmt = db.prepare(`
-        INSERT INTO flights (icao24, callsign, origin_country, longitude, latitude, altitude, velocity, heading)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const insertMany = db.transaction((records) => {
-        for (const flight of records) {
-            if (flight.lon !== undefined && flight.lat !== undefined) {
-                insertStmt.run(
-                    flight.hex,
-                    flight.flight ? flight.flight.trim() : '',
-                    'Unknown', // adsb.lol doesn't provide country lookup in the lightweight endpoint
-                    flight.lon,
-                    flight.lat,
-                    flight.alt_baro || flight.alt_geom || 0,
-                    flight.gs || 0, // ground speed in knots
-                    flight.track || 0 // true track / heading
-                );
-            }
-        }
-    });
-
     let totalFlights = 0;
-
     for (const hub of HUBS) {
-        try {
-            const res = await fetch(`https://api.adsb.lol/v2/lat/${hub.lat}/lon/${hub.lon}/dist/${hub.dist}`, {
-                headers: { 'User-Agent': 'WorldView/1.0' },
-                timeout: 15000 // 15s timeout per hub
-            });
-            if (!res.ok) {
-                console.error(`ADSB.lol API Error for ${hub.name}: Status Code ${res.status}`);
-                continue;
-            }
-
-            const data = await res.json();
-            if (data.ac && data.ac.length > 0) {
-                insertMany(data.ac);
-                totalFlights += data.ac.length;
-            }
-        } catch (err) {
-            console.error(`Error fetching flights for ${hub.name}:`, err.message);
-        }
+        const ac = await fetchFlightsArea(hub.lat, hub.lon, hub.dist);
+        totalFlights += ac.length;
     }
-
     console.log(`Saved ${totalFlights} real-time flight records from hubs.`);
 };
 
-module.exports = { fetchFlights };
+module.exports = { fetchFlights, fetchFlightsArea };

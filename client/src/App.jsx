@@ -24,7 +24,32 @@ function App() {
     const [currentTime, setCurrentTime] = useState(null); // null = LIVE
     const [isPlaying, setIsPlaying] = useState(false);
     const [playbackSpeed, setPlaybackSpeed] = useState(1);
+    const [viewBbox, setViewBbox] = useState(null); // Spatially-aware fetching
     const playRef = useRef(null);
+
+    // Scanner logic: trigger a fetch when zooming into a new area
+    useEffect(() => {
+        if (!viewBbox) return;
+
+        // Calculate center for scan
+        const lat = (viewBbox.south + viewBbox.north) / 2;
+        const lon = (viewBbox.west + viewBbox.east) / 2;
+
+        // Trigger on-demand intelligence scan
+        const triggerScan = async () => {
+            try {
+                await fetch('/api/scanner/trigger', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat, lon })
+                });
+            } catch (err) {
+                console.error('Scanner trigger failed:', err);
+            }
+        };
+
+        triggerScan();
+    }, [viewBbox]);
 
     // Mouse coordinates from globe
     const [mouseCoords, setMouseCoords] = useState({ lat: 0, lon: 0 });
@@ -249,6 +274,7 @@ function App() {
                     onViewerReady={(v) => { viewerRef.current = v; }}
                     onLayerCount={(id, count) => setLayerCounts(prev => ({ ...prev, [id]: count }))}
                     onLayerState={(id, state) => setLayerStates(prev => ({ ...prev, [id]: state }))}
+                    onViewChange={setViewBbox}
                 />
             </main>
             <Timeline

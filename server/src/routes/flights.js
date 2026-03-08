@@ -5,26 +5,36 @@ const db = require('../db/database');
 // GET /api/flights?time=ISO_TIMESTAMP - Returns positions at a specific time, or latest if no time given
 router.get('/', (req, res) => {
     try {
-        const { time } = req.query;
+        const { time, west, south, east, north } = req.query;
         let flights;
 
+        const useBbox = west && south && east && north;
+        const bboxFilter = useBbox
+            ? `AND longitude BETWEEN ? AND ? AND latitude BETWEEN ? AND ?`
+            : '';
+        const params = useBbox
+            ? [parseFloat(west), parseFloat(east), parseFloat(south), parseFloat(north)]
+            : [];
+
         if (time) {
-            // Historical query: get flights closest to the given timestamp
             const targetTime = new Date(time).toISOString();
-            flights = db.prepare(`
+            const query = `
                 SELECT * FROM flights
                 WHERE timestamp BETWEEN datetime(?, '-15 seconds') AND datetime(?, '+15 seconds')
+                ${bboxFilter}
                 GROUP BY icao24
                 HAVING MIN(ABS(strftime('%s', timestamp) - strftime('%s', ?)))
-            `).all(targetTime, targetTime, targetTime);
+            `;
+            flights = db.prepare(query).all(targetTime, targetTime, ...params, targetTime);
         } else {
-            // Live query: most recent data
-            flights = db.prepare(`
+            const query = `
                 SELECT * FROM flights
                 WHERE timestamp > datetime('now', '-2 minutes')
+                ${bboxFilter}
                 GROUP BY icao24
                 HAVING MAX(timestamp)
-            `).all();
+            `;
+            flights = db.prepare(query).all(...params);
         }
 
         res.json(flights);

@@ -8,7 +8,7 @@ const MAX_TRAIL_POINTS = 30;
 // Store sampled properties for interpolation
 const flightCache = {};
 
-const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => {
+const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState, viewBbox }) => {
     const [flights, setFlights] = useState([]);
     const dataSourceRef = useRef(null);
     const trailDataSourceRef = useRef(null);
@@ -22,9 +22,15 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
         const fetchFlights = async () => {
             if (onLayerState) onLayerState('flights', 'loading');
             try {
-                const url = currentTime
+                let url = currentTime
                     ? `/api/flights?time=${currentTime.toISOString()}`
-                    : '/api/flights';
+                    : '/api/flights?';
+
+                if (viewBbox) {
+                    const { west, south, east, north } = viewBbox;
+                    url += `&west=${west}&south=${south}&east=${east}&north=${north}`;
+                }
+
                 const res = await fetch(url);
                 const data = await res.json();
                 setFlights(data);
@@ -39,7 +45,7 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => 
         fetchFlights();
         const interval = currentTime ? null : setInterval(fetchFlights, 10000);
         return () => { if (interval) clearInterval(interval); };
-    }, [active, currentTime]);
+    }, [active, currentTime, viewBbox]);
 
     useEffect(() => {
         if (!viewer) return;
