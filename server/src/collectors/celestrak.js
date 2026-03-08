@@ -26,18 +26,6 @@ const fetchJSON = async (url) => {
     return await res.json();
 };
 
-// Fallback ISS String (Valid as of Mar 2026 approx)
-const FALLBACK_ISS = [
-    {
-        OBJECT_NAME: "ISS (ZARYA)",
-        OBJECT_ID: "1998-067A",
-        TLE_LINE1: "1 25544U 98067A   26066.00000000  .00000000  00000-0  00000-0 0  9999",
-        TLE_LINE2: "2 25544  51.6400 120.0000 0005000  10.0000 100.0000 15.50000000000000",
-        group: "ISS",
-        color: "#ff4081"
-    }
-];
-
 const fetchTLEs = async () => {
     console.log(`[${new Date().toISOString()}] Fetching TLE data from CelesTrak...`);
     try {
@@ -49,8 +37,7 @@ const fetchTLEs = async () => {
             satellites.push(...issData.map(s => ({ ...s, group: 'ISS', color: '#ff4081' })));
             console.log(`  ISS/Stations: ${issData.length} entries`);
         } catch (e) {
-            console.log('  Could not fetch ISS data, using robust fallback');
-            satellites.push(...FALLBACK_ISS);
+            console.log('  Could not fetch ISS data. CelesTrak might be rate limiting.');
         }
 
         // Fetch GPS constellation (32 satellites)
