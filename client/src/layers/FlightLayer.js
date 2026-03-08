@@ -22,15 +22,16 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState, viewB
         const fetchFlights = async () => {
             if (onLayerState) onLayerState('flights', 'loading');
             try {
-                let url = currentTime
-                    ? `/api/flights?time=${currentTime.toISOString()}`
-                    : '/api/flights?';
-
+                const params = new URLSearchParams();
+                if (currentTime) params.set('time', currentTime.toISOString());
                 if (viewBbox) {
-                    const { west, south, east, north } = viewBbox;
-                    url += `&west=${west}&south=${south}&east=${east}&north=${north}`;
+                    params.set('west', viewBbox.west);
+                    params.set('south', viewBbox.south);
+                    params.set('east', viewBbox.east);
+                    params.set('north', viewBbox.north);
                 }
 
+                const url = `/api/flights?${params.toString()}`;
                 const res = await fetch(url);
                 const data = await res.json();
                 setFlights(data);

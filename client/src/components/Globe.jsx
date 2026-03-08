@@ -15,7 +15,7 @@ import PortLayer from '../layers/PortLayer';
 
 Cesium.Ion.defaultAccessToken = 'YOUR_CESIUM_ION_TOKEN';
 
-const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, onLayerState, onViewChange }) => {
+const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, onLayerState, onViewChange, viewBbox }) => {
     const cesiumContainer = useRef(null);
     const [viewer, setViewer] = useState(null);
     const selectedGroundLineRef = useRef(null);
@@ -179,8 +179,8 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, 
         <div ref={cesiumContainer} style={{ width: '100%', height: '100%' }}>
             {viewer && (
                 <>
-                    <FlightLayer viewer={viewer} active={layers.flights} currentTime={currentTime} onCount={(c) => onLayerCount('flights', c)} onLayerState={onLayerState} />
-                    <MaritimeLayer viewer={viewer} active={layers.maritime} onCount={(c) => onLayerCount('maritime', c)} onLayerState={onLayerState} />
+                    <FlightLayer viewer={viewer} active={layers.flights} currentTime={currentTime} onCount={(c) => onLayerCount('flights', c)} onLayerState={onLayerState} viewBbox={viewBbox} />
+                    <MaritimeLayer viewer={viewer} active={layers.maritime} onCount={(c) => onLayerCount('maritime', c)} onLayerState={onLayerState} viewBbox={viewBbox} />
                     <SatelliteLayer viewer={viewer} active={layers.satellites} onCount={(c) => onLayerCount('satellites', c)} onLayerState={onLayerState} />
                     <EarthquakeLayer viewer={viewer} active={layers.earthquakes} onCount={(c) => onLayerCount('earthquakes', c)} onLayerState={onLayerState} />
                     <EonetLayer viewer={viewer} active={layers.eonet} onCount={(c) => onLayerCount('eonet', c)} onLayerState={onLayerState} />

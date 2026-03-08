@@ -17,12 +17,15 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState, viewBbox }) => {
         const fetchShips = async () => {
             if (onLayerState) onLayerState('maritime', 'loading');
             try {
-                let url = '/api/maritime?';
+                const params = new URLSearchParams();
                 if (viewBbox) {
-                    const { west, south, east, north } = viewBbox;
-                    url += `west=${west}&south=${south}&east=${east}&north=${north}`;
+                    params.set('west', viewBbox.west);
+                    params.set('south', viewBbox.south);
+                    params.set('east', viewBbox.east);
+                    params.set('north', viewBbox.north);
                 }
 
+                const url = `/api/maritime?${params.toString()}`;
                 const res = await fetch(url);
                 const data = await res.json();
                 setShips(data);
