@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Link2, Search, X, Plane, Ship, MapPin } from 'lucide-react';
 
-const Header = ({ mouseCoords, currentTime, isLive, onScreenshot, onShare, searchQuery, onSearch, searchResults, onSelectResult }) => {
+const Header = ({ mouseCoords, currentTime, isLive, onScreenshot, onShare, onLocate, searchQuery, onSearch, searchResults, onSelectResult }) => {
     const [time, setTime] = useState(new Date());
 
     useEffect(() => {
@@ -90,6 +90,9 @@ const Header = ({ mouseCoords, currentTime, isLive, onScreenshot, onShare, searc
 
             {/* Action Buttons */}
             <div style={{ display: 'flex', gap: '4px' }}>
+                <button onClick={onLocate} className="header-btn" title="Locate My Position" style={{ color: 'var(--color-accent)' }}>
+                    <MapPin size={16} />
+                </button>
                 <button onClick={onScreenshot} className="header-btn" title="Export Screenshot (PNG)">
                     <Camera size={16} />
                 </button>

@@ -3,6 +3,7 @@ import Globe from './components/Globe';
 import LayerPanel from './components/LayerPanel';
 import Timeline from './components/Timeline';
 import Header from './components/Header';
+import { Target } from 'lucide-react';
 
 function App() {
     const [layers, setLayers] = useState({
@@ -97,6 +98,49 @@ function App() {
         setCurrentTime(null);
         setIsPlaying(false);
     }, []);
+
+    // Geolocation fly-to
+    const flyToUserLocation = useCallback(() => {
+        if (!navigator.geolocation) {
+            alert('Geolocation is not supported by your browser');
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                if (!viewerRef.current) return;
+                const { latitude, longitude } = position.coords;
+
+                // Tactical fly-to with ease-in-out
+                viewerRef.current.camera.flyTo({
+                    destination: window.Cesium.Cartesian3.fromDegrees(longitude, latitude, 200000), // 200km altitude
+                    duration: 3,
+                    easingFunction: window.Cesium.EasingFunction.QUADRATIC_IN_OUT
+                });
+            },
+            (error) => {
+                console.warn('Geolocation failed:', error);
+                // Fallback to global view if rejected
+            },
+            { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+        );
+    }, []);
+
+    // Initial startup: fly to user location
+    const hasInitialLocationRef = useRef(false);
+    useEffect(() => {
+        if (!hasInitialLocationRef.current) {
+            // Wait for viewer to be ready
+            const checkViewer = setInterval(() => {
+                if (viewerRef.current) {
+                    clearInterval(checkViewer);
+                    flyToUserLocation();
+                    hasInitialLocationRef.current = true;
+                }
+            }, 500);
+            return () => clearInterval(checkViewer);
+        }
+    }, [flyToUserLocation]);
 
     // Keyboard shortcuts
     useEffect(() => {
@@ -257,6 +301,7 @@ function App() {
                 isLive={currentTime === null}
                 onScreenshot={handleScreenshot}
                 onShare={handleShare}
+                onLocate={flyToUserLocation}
                 searchQuery={searchQuery}
                 onSearch={handleSearch}
                 searchResults={searchResults}
