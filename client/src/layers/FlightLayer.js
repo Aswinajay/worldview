@@ -64,7 +64,8 @@ const FlightLayer = ({ viewer, active, currentTime, onCount }) => {
             const updatedTrailIds = new Set();
 
             flights.forEach(flight => {
-                if (!flight.longitude || !flight.latitude) return;
+                if (typeof flight.longitude !== 'number' || typeof flight.latitude !== 'number' ||
+                    isNaN(flight.longitude) || isNaN(flight.latitude)) return;
 
                 const icao = flight.icao24;
                 const id = `flight-${icao}`;
@@ -72,25 +73,29 @@ const FlightLayer = ({ viewer, active, currentTime, onCount }) => {
                 updatedIds.add(id);
                 updatedTrailIds.add(trailId);
 
+                const altitude = (typeof flight.altitude === 'number' && !isNaN(flight.altitude)) ? flight.altitude : 10000;
+
                 // Accumulate trail history
                 if (!trailHistory[icao]) trailHistory[icao] = [];
                 const lastEntry = trailHistory[icao][trailHistory[icao].length - 1];
                 if (!lastEntry ||
                     Math.abs(lastEntry.lon - flight.longitude) > 0.001 ||
                     Math.abs(lastEntry.lat - flight.latitude) > 0.001) {
+
                     trailHistory[icao].push({
                         lon: flight.longitude,
                         lat: flight.latitude,
-                        alt: flight.altitude || 10000,
+                        alt: altitude,
                         time: Date.now()
                     });
+
                     if (trailHistory[icao].length > MAX_TRAIL_POINTS) {
                         trailHistory[icao] = trailHistory[icao].slice(-MAX_TRAIL_POINTS);
                     }
                 }
 
                 const position = Cesium.Cartesian3.fromDegrees(
-                    flight.longitude, flight.latitude, flight.altitude || 10000
+                    flight.longitude, flight.latitude, altitude
                 );
 
                 const heading = Cesium.Math.toRadians(flight.heading || 0);
@@ -145,25 +150,30 @@ const FlightLayer = ({ viewer, active, currentTime, onCount }) => {
                 // Trail polyline
                 const trail = trailHistory[icao];
                 if (trail && trail.length >= 2) {
-                    const trailPositions = trail.map(p =>
-                        Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
-                    );
-                    const trailEntity = trailDs.entities.getById(trailId);
-                    if (trailEntity) {
-                        trailEntity.polyline.positions = trailPositions;
-                    } else {
-                        trailDs.entities.add({
-                            id: trailId,
-                            polyline: {
-                                positions: trailPositions,
-                                width: 3,
-                                material: new Cesium.PolylineGlowMaterialProperty({
-                                    glowPower: 0.25,
-                                    color: color.withAlpha(0.8)
-                                }),
-                                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 8000000)
-                            }
-                        });
+                    // Pre-filter trail to guarantee no NaN values get sent to Cesium Array buffers
+                    const validTrail = trail.filter(p => !isNaN(p.lon) && !isNaN(p.lat) && !isNaN(p.alt));
+
+                    if (validTrail.length >= 2) {
+                        const trailPositions = validTrail.map(p =>
+                            Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
+                        );
+                        const trailEntity = trailDs.entities.getById(trailId);
+                        if (trailEntity) {
+                            trailEntity.polyline.positions = trailPositions;
+                        } else {
+                            trailDs.entities.add({
+                                id: trailId,
+                                polyline: {
+                                    positions: trailPositions,
+                                    width: 3,
+                                    material: new Cesium.PolylineGlowMaterialProperty({
+                                        glowPower: 0.25,
+                                        color: color.withAlpha(0.8)
+                                    }),
+                                    distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 8000000)
+                                }
+                            });
+                        }
                     }
                 }
             });
