@@ -5,6 +5,7 @@ const maritime = require('./maritime');
 const earthquakes = require('./earthquakes');
 const eonet = require('./eonet');
 const airports = require('./airports');
+const maritimeInfra = require('./maritime_infra');
 const db = require('../db/database');
 
 // Curated major international routes (Top 40)
@@ -57,6 +58,7 @@ const startScheduler = () => {
 
     // Seed airports and routes once
     airports.syncAirports();
+    maritimeInfra.syncMaritimeInfra();
     seedRoutes();
 
     // Do first fetches immediately

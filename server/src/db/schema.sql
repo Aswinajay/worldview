@@ -66,6 +66,27 @@ CREATE TABLE IF NOT EXISTS global_routes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     origin_icao TEXT,
     dest_icao TEXT,
+    usage_score INTEGER DEFAULT 0
+);
+
+-- Port Database (Maritime Hubs)
+CREATE TABLE IF NOT EXISTS ports (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    city TEXT,
+    country TEXT,
+    code TEXT UNIQUE, -- e.g. 'CNSHG' for Shanghai
+    latitude REAL,
+    longitude REAL
+);
+CREATE INDEX IF NOT EXISTS idx_ports_code ON ports(code);
+
+-- Maritime Shipping Lanes
+CREATE TABLE IF NOT EXISTS maritime_routes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    origin_code TEXT,
+    dest_code TEXT,
     usage_score INTEGER DEFAULT 0 -- For prioritizing thick vs thin lines
 );
+
 

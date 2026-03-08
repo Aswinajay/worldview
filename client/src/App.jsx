@@ -15,7 +15,9 @@ function App() {
         internet: false,
         eonet: false,
         routes: false,
-        airports: false
+        airports: false,
+        maritimeLanes: false,
+        ports: false
     });
 
     // Time-travel state

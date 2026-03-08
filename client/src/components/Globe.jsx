@@ -10,6 +10,8 @@ import NotamLayer from '../layers/NotamLayer';
 import InternetLayer from '../layers/InternetLayer';
 import RouteLayer from '../layers/RouteLayer';
 import AirportLayer from '../layers/AirportLayer';
+import MaritimeRouteLayer from '../layers/MaritimeRouteLayer';
+import PortLayer from '../layers/PortLayer';
 
 Cesium.Ion.defaultAccessToken = 'YOUR_CESIUM_ION_TOKEN';
 
@@ -167,6 +169,8 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, 
                     <InternetLayer viewer={viewer} active={layers.internet} onCount={(c) => onLayerCount('internet', c)} onLayerState={onLayerState} />
                     <RouteLayer viewer={viewer} active={layers.routes} onLayerState={onLayerState} />
                     <AirportLayer viewer={viewer} active={layers.airports} onCount={(c) => onLayerCount('airports', c)} onLayerState={onLayerState} />
+                    <MaritimeRouteLayer viewer={viewer} active={layers.maritimeLanes} onLayerState={onLayerState} />
+                    <PortLayer viewer={viewer} active={layers.ports} onCount={(c) => onLayerCount('ports', c)} onLayerState={onLayerState} />
                 </>
             )}
         </div>

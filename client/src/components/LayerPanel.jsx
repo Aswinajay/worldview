@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plane, Ship, Satellite, WifiOff, AlertTriangle, Radio, MapPin, Menu, X, Activity, CloudLightning } from 'lucide-react';
+import { Plane, Ship, Satellite, WifiOff, AlertTriangle, Radio, MapPin, Menu, X, Activity, CloudLightning, Anchor } from 'lucide-react';
 
 const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts, status }) => {
     const [collapsed, setCollapsed] = React.useState(false);
@@ -141,6 +141,29 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts, status }) 
                         status={status?.airports}
                         count={layerCounts.airports}
                         countLabel="hubs"
+                    />
+
+                    <div style={{ height: '1px', background: 'var(--border-glass)', margin: '16px 0' }} />
+
+                    <LayerToggle
+                        id="maritimeLanes"
+                        icon={<Ship size={16} />}
+                        label="Shipping Lanes"
+                        active={layers.maritimeLanes}
+                        onToggle={() => toggleLayer('maritimeLanes')}
+                        status={status?.maritimeLanes}
+                        countLabel="global"
+                    />
+
+                    <LayerToggle
+                        id="ports"
+                        icon={<Anchor size={16} />}
+                        label="Strategic Ports"
+                        active={layers.ports}
+                        onToggle={() => toggleLayer('ports')}
+                        status={status?.ports}
+                        count={layerCounts.ports}
+                        countLabel="ports"
                     />
                 </div>
 
