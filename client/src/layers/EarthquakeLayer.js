@@ -1,19 +1,28 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 
-const EarthquakeLayer = ({ viewer, active, onCount }) => {
+const EarthquakeLayer = ({ viewer, active, onCount, onLayerState }) => {
     const [quakes, setQuakes] = useState([]);
     const dataSourceRef = useRef(null);
 
     useEffect(() => {
-        if (!active) return;
+        if (!active) {
+            if (onLayerState) onLayerState('earthquakes', null);
+            return;
+        }
+
         const fetchQuakes = async () => {
+            if (onLayerState) onLayerState('earthquakes', 'loading');
             try {
                 const res = await fetch('/api/earthquakes');
                 const data = await res.json();
                 setQuakes(data);
                 if (onCount) onCount(data.length);
-            } catch (err) { console.error('Earthquakes fetch error:', err); }
+                if (onLayerState) onLayerState('earthquakes', 'live');
+            } catch (err) {
+                console.error('Earthquakes fetch error:', err);
+                if (onLayerState) onLayerState('earthquakes', 'error');
+            }
         };
         fetchQuakes();
         const interval = setInterval(fetchQuakes, 600000); // 10 mins

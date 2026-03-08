@@ -5,15 +5,19 @@ import * as Cesium from 'cesium';
 const trailHistory = {};
 const MAX_TRAIL_POINTS = 30;
 
-const FlightLayer = ({ viewer, active, currentTime, onCount }) => {
+const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState }) => {
     const [flights, setFlights] = useState([]);
     const dataSourceRef = useRef(null);
     const trailDataSourceRef = useRef(null);
 
     useEffect(() => {
-        if (!active) return;
+        if (!active) {
+            if (onLayerState) onLayerState('flights', null);
+            return;
+        }
 
         const fetchFlights = async () => {
+            if (onLayerState) onLayerState('flights', 'loading');
             try {
                 const url = currentTime
                     ? `/api/flights?time=${currentTime.toISOString()}`
@@ -22,8 +26,10 @@ const FlightLayer = ({ viewer, active, currentTime, onCount }) => {
                 const data = await res.json();
                 setFlights(data);
                 if (onCount) onCount(data.length);
+                if (onLayerState) onLayerState('flights', 'live');
             } catch (err) {
                 console.error('Failed to fetch flights:', err);
+                if (onLayerState) onLayerState('flights', 'error');
             }
         };
 
@@ -50,8 +56,33 @@ const FlightLayer = ({ viewer, active, currentTime, onCount }) => {
 
         const renderData = async () => {
             if (!dataSourceRef.current) {
-                dataSourceRef.current = new Cesium.CustomDataSource('flights');
-                await viewer.dataSources.add(dataSourceRef.current);
+                const ds = new Cesium.CustomDataSource('flights');
+
+                // Enable clustering for performance
+                ds.clustering.enabled = true;
+                ds.clustering.pixelRange = 40;
+                ds.clustering.minimumClusterSize = 5;
+
+                // Custom cluster style
+                ds.clustering.clusterEvent.addEventListener((clusteredEntities, cluster) => {
+                    cluster.label.show = true;
+                    cluster.label.text = clusteredEntities.length.toLocaleString();
+                    cluster.label.font = 'bold 12px sans-serif';
+                    cluster.label.fillColor = Cesium.Color.fromCssColorString('#00d2ff');
+                    cluster.label.outlineColor = Cesium.Color.BLACK;
+                    cluster.label.outlineWidth = 3;
+                    cluster.label.style = Cesium.LabelStyle.FILL_AND_OUTLINE;
+                    cluster.label.verticalOrigin = Cesium.VerticalOrigin.CENTER;
+
+                    cluster.point.show = true;
+                    cluster.point.pixelSize = 24;
+                    cluster.point.color = Cesium.Color.fromCssColorString('#00d2ff').withAlpha(0.6);
+                    cluster.point.outlineColor = Cesium.Color.WHITE;
+                    cluster.point.outlineWidth = 2;
+                });
+
+                dataSourceRef.current = ds;
+                await viewer.dataSources.add(ds);
             }
             if (!trailDataSourceRef.current) {
                 trailDataSourceRef.current = new Cesium.CustomDataSource('flight-trails');

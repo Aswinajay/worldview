@@ -1,19 +1,28 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 
-const EonetLayer = ({ viewer, active, onCount }) => {
+const EonetLayer = ({ viewer, active, onCount, onLayerState }) => {
     const [events, setEvents] = useState([]);
     const dataSourceRef = useRef(null);
 
     useEffect(() => {
-        if (!active) return;
+        if (!active) {
+            if (onLayerState) onLayerState('eonet', null);
+            return;
+        }
+
         const fetchEvents = async () => {
+            if (onLayerState) onLayerState('eonet', 'loading');
             try {
                 const res = await fetch('/api/eonet');
                 const data = await res.json();
                 setEvents(data);
                 if (onCount) onCount(data.length);
-            } catch (err) { console.error('EONET fetch error:', err); }
+                if (onLayerState) onLayerState('eonet', 'live');
+            } catch (err) {
+                console.error('EONET fetch error:', err);
+                if (onLayerState) onLayerState('eonet', 'error');
+            }
         };
         fetchEvents();
         const interval = setInterval(fetchEvents, 1800000); // 30 mins

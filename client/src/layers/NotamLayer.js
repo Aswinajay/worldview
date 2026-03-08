@@ -25,19 +25,15 @@ const NOTAM_ZONES = [
     },
 ];
 
-const NotamLayer = ({ viewer, active, onCount }) => {
+const NotamLayer = ({ viewer, active, onCount, onLayerState }) => {
     const dataSourceRef = useRef(null);
 
     useEffect(() => {
-        if (!viewer) return;
-
         if (!active) {
-            if (dataSourceRef.current) {
-                viewer.dataSources.remove(dataSourceRef.current);
-                dataSourceRef.current = null;
-            }
+            if (onLayerState) onLayerState('notams', null);
             return;
         }
+        if (onLayerState) onLayerState('notams', 'live');
 
         if (onCount) onCount(NOTAM_ZONES.length);
         const render = async () => {

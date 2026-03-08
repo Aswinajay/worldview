@@ -11,9 +11,10 @@ import InternetLayer from '../layers/InternetLayer';
 
 Cesium.Ion.defaultAccessToken = 'YOUR_CESIUM_ION_TOKEN';
 
-const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount }) => {
+const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, onLayerState }) => {
     const cesiumContainer = useRef(null);
     const [viewer, setViewer] = useState(null);
+    const selectedGroundLineRef = useRef(null);
 
     useEffect(() => {
         if (!cesiumContainer.current || viewer) return;
@@ -38,7 +39,48 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount }
         v.scene.backgroundColor = Cesium.Color.fromCssColorString('#0a0a1a');
         v.scene.globe.baseColor = Cesium.Color.fromCssColorString('#1a1a2e');
 
-        // BUG FIX #1: Live coordinate display on mouse move
+        // Selection Change Handler (Highlight selected + Ground Line)
+        v.selectedEntityChanged.addEventListener((entity) => {
+            if (selectedGroundLineRef.current) {
+                v.entities.remove(selectedGroundLineRef.current);
+                selectedGroundLineRef.current = null;
+            }
+
+            if (entity && entity.position) {
+                // If it's an airborne asset (has altitude), draw a line to ground
+                const pos = entity.position.getValue(v.clock.currentTime);
+                if (pos) {
+                    const cartographic = Cesium.Cartographic.fromCartesian(pos);
+                    if (cartographic.height > 100) { // Only if significantly above ground
+                        selectedGroundLineRef.current = v.entities.add({
+                            name: 'Ground Track',
+                            polyline: {
+                                positions: new Cesium.CallbackProperty(() => {
+                                    const currentPos = entity.position.getValue(v.clock.currentTime);
+                                    if (!currentPos) return [];
+                                    const carto = Cesium.Cartographic.fromCartesian(currentPos);
+                                    return [
+                                        currentPos,
+                                        Cesium.Cartesian3.fromDegrees(
+                                            Cesium.Math.toDegrees(carto.longitude),
+                                            Cesium.Math.toDegrees(carto.latitude),
+                                            0
+                                        )
+                                    ];
+                                }, false),
+                                width: 1,
+                                material: new Cesium.PolylineDashMaterialProperty({
+                                    color: Cesium.Color.WHITE.withAlpha(0.5),
+                                    dashLength: 16
+                                })
+                            }
+                        });
+                    }
+                }
+            }
+        });
+
+        // Mouse Move Handler
         const handler = new Cesium.ScreenSpaceEventHandler(v.scene.canvas);
         handler.setInputAction((movement) => {
             const cartesian = v.camera.pickEllipsoid(movement.endPosition, v.scene.globe.ellipsoid);
@@ -114,13 +156,13 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount }
         <div ref={cesiumContainer} style={{ width: '100%', height: '100%' }}>
             {viewer && (
                 <>
-                    <FlightLayer viewer={viewer} active={layers.flights} currentTime={currentTime} onCount={(c) => onLayerCount('flights', c)} />
-                    <MaritimeLayer viewer={viewer} active={layers.maritime} onCount={(c) => onLayerCount('maritime', c)} />
-                    <SatelliteLayer viewer={viewer} active={layers.satellites} onCount={(c) => onLayerCount('satellites', c)} />
-                    <EarthquakeLayer viewer={viewer} active={layers.earthquakes} onCount={(c) => onLayerCount('earthquakes', c)} />
-                    <EonetLayer viewer={viewer} active={layers.eonet} onCount={(c) => onLayerCount('eonet', c)} />
-                    <NotamLayer viewer={viewer} active={layers.notams} onCount={(c) => onLayerCount('notams', c)} />
-                    <InternetLayer viewer={viewer} active={layers.internet} onCount={(c) => onLayerCount('internet', c)} />
+                    <FlightLayer viewer={viewer} active={layers.flights} currentTime={currentTime} onCount={(c) => onLayerCount('flights', c)} onLayerState={onLayerState} />
+                    <MaritimeLayer viewer={viewer} active={layers.maritime} onCount={(c) => onLayerCount('maritime', c)} onLayerState={onLayerState} />
+                    <SatelliteLayer viewer={viewer} active={layers.satellites} onCount={(c) => onLayerCount('satellites', c)} onLayerState={onLayerState} />
+                    <EarthquakeLayer viewer={viewer} active={layers.earthquakes} onCount={(c) => onLayerCount('earthquakes', c)} onLayerState={onLayerState} />
+                    <EonetLayer viewer={viewer} active={layers.eonet} onCount={(c) => onLayerCount('eonet', c)} onLayerState={onLayerState} />
+                    <NotamLayer viewer={viewer} active={layers.notams} onCount={(c) => onLayerCount('notams', c)} onLayerState={onLayerState} />
+                    <InternetLayer viewer={viewer} active={layers.internet} onCount={(c) => onLayerCount('internet', c)} onLayerState={onLayerState} />
                 </>
             )}
         </div>

@@ -27,6 +27,7 @@ function App() {
 
     // Layer data counts
     const [layerCounts, setLayerCounts] = useState({});
+    const [layerStates, setLayerStates] = useState({});
 
     // Search state
     const [searchResults, setSearchResults] = useState([]);
@@ -234,7 +235,7 @@ function App() {
                 toggleLayer={toggleLayer}
                 setBaseLayer={setBaseLayer}
                 layerCounts={layerCounts}
-                status={layers} // Temporary: Use layer toggle state as a hint for loading until we have real status state
+                status={layerStates}
             />
             <main className="globe-container">
                 <Globe
@@ -243,6 +244,7 @@ function App() {
                     onMouseMove={setMouseCoords}
                     onViewerReady={(v) => { viewerRef.current = v; }}
                     onLayerCount={(id, count) => setLayerCounts(prev => ({ ...prev, [id]: count }))}
+                    onLayerState={(id, state) => setLayerStates(prev => ({ ...prev, [id]: state }))}
                 />
             </main>
             <Timeline

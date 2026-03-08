@@ -1,19 +1,28 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as Cesium from 'cesium';
 
-const MaritimeLayer = ({ viewer, active, onCount }) => {
+const MaritimeLayer = ({ viewer, active, onCount, onLayerState }) => {
     const [ships, setShips] = useState([]);
     const dataSourceRef = useRef(null);
 
     useEffect(() => {
-        if (!active) return;
+        if (!active) {
+            if (onLayerState) onLayerState('maritime', null);
+            return;
+        }
+
         const fetchShips = async () => {
+            if (onLayerState) onLayerState('maritime', 'loading');
             try {
                 const res = await fetch('/api/maritime');
                 const data = await res.json();
                 setShips(data);
                 if (onCount) onCount(data.length);
-            } catch (err) { console.error('Maritime fetch error:', err); }
+                if (onLayerState) onLayerState('maritime', 'live');
+            } catch (err) {
+                console.error('Maritime fetch error:', err);
+                if (onLayerState) onLayerState('maritime', 'error');
+            }
         };
         fetchShips();
         const interval = setInterval(fetchShips, 30000);
@@ -32,8 +41,31 @@ const MaritimeLayer = ({ viewer, active, onCount }) => {
 
         const render = async () => {
             if (!dataSourceRef.current) {
-                dataSourceRef.current = new Cesium.CustomDataSource('maritime');
-                await viewer.dataSources.add(dataSourceRef.current);
+                const ds = new Cesium.CustomDataSource('maritime');
+
+                // Enable clustering
+                ds.clustering.enabled = true;
+                ds.clustering.pixelRange = 30;
+                ds.clustering.minimumClusterSize = 3;
+
+                ds.clustering.clusterEvent.addEventListener((clusteredEntities, cluster) => {
+                    cluster.label.show = true;
+                    cluster.label.text = clusteredEntities.length.toLocaleString();
+                    cluster.label.font = 'bold 12px monospace';
+                    cluster.label.fillColor = Cesium.Color.CYAN;
+                    cluster.label.outlineColor = Cesium.Color.BLACK;
+                    cluster.label.outlineWidth = 2;
+                    cluster.label.style = Cesium.LabelStyle.FILL_AND_OUTLINE;
+
+                    cluster.point.show = true;
+                    cluster.point.pixelSize = 20;
+                    cluster.point.color = Cesium.Color.CYAN.withAlpha(0.6);
+                    cluster.point.outlineColor = Cesium.Color.WHITE;
+                    cluster.point.outlineWidth = 1;
+                });
+
+                dataSourceRef.current = ds;
+                await viewer.dataSources.add(ds);
             }
             const ds = dataSourceRef.current;
             ds.entities.removeAll();

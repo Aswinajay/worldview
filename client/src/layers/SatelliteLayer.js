@@ -2,20 +2,29 @@ import React, { useEffect, useState, useRef } from 'react';
 import * as Cesium from 'cesium';
 import * as satellite from 'satellite.js';
 
-const SatelliteLayer = ({ viewer, active, onCount }) => {
+const SatelliteLayer = ({ viewer, active, onCount, onLayerState }) => {
     const [tleData, setTleData] = useState([]);
     const dataSourceRef = useRef(null);
     const animFrameRef = useRef(null);
 
     useEffect(() => {
-        if (!active) return;
+        if (!active) {
+            if (onLayerState) onLayerState('satellites', null);
+            return;
+        }
+
         const fetchTLEs = async () => {
+            if (onLayerState) onLayerState('satellites', 'loading');
             try {
                 const res = await fetch('/api/satellites');
                 const data = await res.json();
                 console.log(`[SatelliteLayer] Received ${data.length} TLE records`);
                 setTleData(data);
-            } catch (err) { console.error('Satellite fetch error:', err); }
+                if (onLayerState) onLayerState('satellites', 'live');
+            } catch (err) {
+                console.error('Satellite fetch error:', err);
+                if (onLayerState) onLayerState('satellites', 'error');
+            }
         };
         fetchTLEs();
     }, [active]);

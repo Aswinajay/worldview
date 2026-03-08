@@ -33,37 +33,47 @@ const fetchTLEs = async () => {
     try {
         const satellites = [];
 
-        // Fetch ISS / Space Stations (small list, always fetch)
+        // Fetch ISS / Space Stations
         try {
             const issData = await fetchJSON(GROUPS[0].url);
-            satellites.push(...issData.map(s => ({ ...s, group: 'ISS', color: '#ff4081' })));
-            console.log(`  ISS/Stations: ${issData.length} entries`);
+            if (Array.isArray(issData)) {
+                satellites.push(...issData.map(s => ({ ...s, group: 'ISS', color: '#ff4081' })));
+                console.log(`  ISS/Stations: ${issData.length} entries`);
+            } else {
+                console.error('  ISS data is not an array:', typeof issData);
+            }
         } catch (e) {
-            console.log('  Could not fetch ISS data. CelesTrak might be rate limiting.');
+            console.error('  Could not fetch ISS data:', e.message);
         }
 
-        // Fetch GPS constellation (32 satellites)
+        // Fetch GPS constellation
         try {
             const gpsData = await fetchJSON(GROUPS[2].url);
-            satellites.push(...gpsData.map(s => ({ ...s, group: 'GPS', color: '#ffffff' })));
-            console.log(`  GPS: ${gpsData.length} entries`);
-        } catch (e) { console.log('  Could not fetch GPS data'); }
+            if (Array.isArray(gpsData)) {
+                satellites.push(...gpsData.map(s => ({ ...s, group: 'GPS', color: '#ffffff' })));
+                console.log(`  GPS: ${gpsData.length} entries`);
+            }
+        } catch (e) { console.error('  Could not fetch GPS data:', e.message); }
 
-        // Fetch first 50 Starlink (out of ~6000)
+        // Fetch Starlink
         try {
             const starlinkData = await fetchJSON(GROUPS[1].url);
-            const limited = starlinkData.slice(0, 50);
-            satellites.push(...limited.map(s => ({ ...s, group: 'Starlink', color: '#00e676' })));
-            console.log(`  Starlink: ${limited.length} entries`);
-        } catch (e) { console.log('  Could not fetch Starlink data'); }
+            if (Array.isArray(starlinkData)) {
+                const limited = starlinkData.slice(0, 75);
+                satellites.push(...limited.map(s => ({ ...s, group: 'Starlink', color: '#00e676' })));
+                console.log(`  Starlink: ${limited.length} entries`);
+            }
+        } catch (e) { console.error('  Could not fetch Starlink data:', e.message); }
 
-        // Fetch first 100 active satellites
+        // Fetch active satellites
         try {
             const activeData = await fetchJSON(GROUPS[3].url);
-            const limited = activeData.slice(0, 100);
-            satellites.push(...limited.map(s => ({ ...s, group: 'Active', color: '#00d2ff' })));
-            console.log(`  Active: ${limited.length} entries`);
-        } catch (e) { console.log('  Could not fetch active satellites'); }
+            if (Array.isArray(activeData)) {
+                const limited = activeData.slice(0, 100);
+                satellites.push(...limited.map(s => ({ ...s, group: 'Active', color: '#00d2ff' })));
+                console.log(`  Active: ${limited.length} entries`);
+            }
+        } catch (e) { console.error('  Could not fetch active satellites:', e.message); }
 
         if (satellites.length > 0) {
             fs.writeFileSync(TLE_CACHE_PATH, JSON.stringify(satellites, null, 2));

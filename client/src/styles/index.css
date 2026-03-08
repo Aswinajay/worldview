@@ -219,7 +219,19 @@ input:checked+.slider:before {
   box-shadow: 0 0 8px var(--color-success);
 }
 
-/* Pulsing animation */
+.status-dot.loading {
+  background-color: var(--color-accent);
+  box-shadow: 0 0 8px var(--color-accent);
+  animation: loading-spin 1s linear infinite;
+  border: 1.5px dashed var(--bg-dark);
+}
+
+.status-dot.error {
+  background-color: var(--color-danger);
+  box-shadow: 0 0 8px var(--color-danger);
+}
+
+/* Animations */
 .pulse {
   animation: pulse-glow 2s ease-in-out infinite;
 }
@@ -229,16 +241,64 @@ input:checked+.slider:before {
   0%,
   100% {
     opacity: 1;
-    box-shadow: 0 0 4px var(--color-success);
+    transform: scale(1);
   }
 
   50% {
-    opacity: 0.5;
-    box-shadow: 0 0 12px var(--color-success);
+    opacity: 0.6;
+    transform: scale(0.85);
   }
 }
 
-/* Cesium Customizations */
+@keyframes loading-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Cesium InfoBox Theme Overrides */
+.cesium-infoBox {
+  background: rgba(10, 10, 26, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5) !important;
+}
+
+.cesium-infoBox-title {
+  background: rgba(0, 210, 255, 0.1) !important;
+  color: var(--color-accent) !important;
+  font-family: monospace !important;
+  font-weight: bold !important;
+  border-bottom: 1px solid rgba(0, 210, 255, 0.2) !important;
+}
+
+.cesium-infoBox-description {
+  background: transparent !important;
+}
+
+.cesium-infoBox-defaultTable {
+  width: 100%;
+}
+
+.cesium-infoBox-defaultTable th {
+  color: var(--text-secondary) !important;
+  font-weight: normal !important;
+  font-family: monospace !important;
+  font-size: 11px !important;
+}
+
+.cesium-infoBox-defaultTable td {
+  color: var(--text-primary) !important;
+  font-family: monospace !important;
+  font-size: 11px !important;
+}
+
+/* Cesium Primary UI */
 .cesium-viewer-cesiumWidgetContainer,
 .cesium-widget,
 .cesium-widget canvas {

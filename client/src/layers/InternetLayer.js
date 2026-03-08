@@ -15,19 +15,15 @@ const OUTAGE_DATA = [
     { country: 'Eritrea', code: 'ER', score: 0.15, coords: [39.7, 15.2] },
 ];
 
-const InternetLayer = ({ viewer, active, onCount }) => {
+const InternetLayer = ({ viewer, active, onCount, onLayerState }) => {
     const dataSourceRef = useRef(null);
 
     useEffect(() => {
-        if (!viewer) return;
-
         if (!active) {
-            if (dataSourceRef.current) {
-                viewer.dataSources.remove(dataSourceRef.current);
-                dataSourceRef.current = null;
-            }
+            if (onLayerState) onLayerState('internet', null);
             return;
         }
+        if (onLayerState) onLayerState('internet', 'live');
 
         if (onCount) onCount(OUTAGE_DATA.length);
         const render = async () => {
