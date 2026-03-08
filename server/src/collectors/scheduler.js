@@ -2,6 +2,8 @@ const cron = require('node-cron');
 const opensky = require('./opensky');
 const celestrak = require('./celestrak');
 const maritime = require('./maritime');
+const earthquakes = require('./earthquakes');
+const eonet = require('./eonet');
 
 // Initialize all background collection jobs
 const startScheduler = () => {
@@ -22,10 +24,22 @@ const startScheduler = () => {
         celestrak.fetchTLEs();
     });
 
+    // USGS Earthquakes every 10 minutes
+    cron.schedule('*/10 * * * *', () => {
+        earthquakes.fetchEarthquakes();
+    });
+
+    // NASA EONET every 30 minutes
+    cron.schedule('*/30 * * * *', () => {
+        eonet.fetchEonet();
+    });
+
     // Do first fetches immediately
     opensky.fetchFlights();
     maritime.fetchMaritime();
     celestrak.fetchTLEs();
+    earthquakes.fetchEarthquakes();
+    eonet.fetchEonet();
 };
 
 module.exports = { startScheduler };

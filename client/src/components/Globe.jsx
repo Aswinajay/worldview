@@ -4,10 +4,10 @@ import 'cesium/Build/Cesium/Widgets/widgets.css';
 import FlightLayer from '../layers/FlightLayer';
 import MaritimeLayer from '../layers/MaritimeLayer';
 import SatelliteLayer from '../layers/SatelliteLayer';
-import GpsJamLayer from '../layers/GpsJamLayer';
+import EarthquakeLayer from '../layers/EarthquakeLayer';
+import EonetLayer from '../layers/EonetLayer';
 import NotamLayer from '../layers/NotamLayer';
 import InternetLayer from '../layers/InternetLayer';
-import ConflictLayer from '../layers/ConflictLayer';
 
 Cesium.Ion.defaultAccessToken = 'YOUR_CESIUM_ION_TOKEN';
 
@@ -117,10 +117,10 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount }
                     <FlightLayer viewer={viewer} active={layers.flights} currentTime={currentTime} onCount={(c) => onLayerCount('flights', c)} />
                     <MaritimeLayer viewer={viewer} active={layers.maritime} onCount={(c) => onLayerCount('maritime', c)} />
                     <SatelliteLayer viewer={viewer} active={layers.satellites} onCount={(c) => onLayerCount('satellites', c)} />
-                    <GpsJamLayer viewer={viewer} active={layers.gpsJam} onCount={(c) => onLayerCount('gpsJam', c)} />
+                    <EarthquakeLayer viewer={viewer} active={layers.earthquakes} onCount={(c) => onLayerCount('earthquakes', c)} />
+                    <EonetLayer viewer={viewer} active={layers.eonet} onCount={(c) => onLayerCount('eonet', c)} />
                     <NotamLayer viewer={viewer} active={layers.notams} onCount={(c) => onLayerCount('notams', c)} />
                     <InternetLayer viewer={viewer} active={layers.internet} onCount={(c) => onLayerCount('internet', c)} />
-                    <ConflictLayer viewer={viewer} active={layers.conflicts} onCount={(c) => onLayerCount('conflicts', c)} />
                 </>
             )}
         </div>

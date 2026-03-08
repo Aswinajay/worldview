@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plane, Ship, Satellite, WifiOff, AlertTriangle, Radio, MapPin, Menu, X } from 'lucide-react';
+import { Plane, Ship, Satellite, WifiOff, AlertTriangle, Radio, MapPin, Menu, X, Activity, CloudLightning } from 'lucide-react';
 
 const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
     const [collapsed, setCollapsed] = React.useState(false);
@@ -75,13 +75,13 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
                     <div style={{ height: '1px', background: 'var(--border-glass)', margin: '16px 0' }} />
 
                     <LayerToggle
-                        id="gpsJam"
-                        icon={<Radio size={16} />}
-                        label="GPS Jamming"
-                        active={layers.gpsJam}
-                        onToggle={() => toggleLayer('gpsJam')}
-                        count={layerCounts.gpsJam}
-                        countLabel="zones"
+                        id="earthquakes"
+                        icon={<Activity size={16} />}
+                        label="Live Earthquakes"
+                        active={layers.earthquakes}
+                        onToggle={() => toggleLayer('earthquakes')}
+                        count={layerCounts.earthquakes}
+                        countLabel="quakes"
                     />
 
                     <LayerToggle
@@ -105,12 +105,12 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts }) => {
                     />
 
                     <LayerToggle
-                        id="conflicts"
-                        icon={<MapPin size={16} />}
-                        label="Conflict Markers"
-                        active={layers.conflicts}
-                        onToggle={() => toggleLayer('conflicts')}
-                        count={layerCounts.conflicts}
+                        id="eonet"
+                        icon={<CloudLightning size={16} />}
+                        label="Natural Events"
+                        active={layers.eonet}
+                        onToggle={() => toggleLayer('eonet')}
+                        count={layerCounts.eonet}
                         countLabel="events"
                     />
                 </div>

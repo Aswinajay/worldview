@@ -10,10 +10,10 @@ function App() {
         flights: true,
         maritime: false,
         satellites: false,
-        gpsJam: false,
+        earthquakes: false,
         notams: false,
         internet: false,
-        conflicts: false
+        eonet: false
     });
 
     // Time-travel state
