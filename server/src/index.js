@@ -11,9 +11,17 @@ app.use(express.json());
 
 // Import Routes
 const flightsRoute = require('./routes/flights');
+const snapshotRoute = require('./routes/snapshot');
+const maritimeRoute = require('./routes/maritime');
+const satellitesRoute = require('./routes/satellites');
+const eventsRoute = require('./routes/events');
 
 // Mount Routes
 app.use('/api/flights', flightsRoute);
+app.use('/api/snapshot', snapshotRoute);
+app.use('/api/maritime', maritimeRoute);
+app.use('/api/satellites', satellitesRoute);
+app.use('/api/events', eventsRoute);
 
 // Collectors
 const { startScheduler } = require('./collectors/scheduler');

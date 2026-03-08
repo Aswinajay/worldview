@@ -1,17 +1,25 @@
 import React, { useEffect, useState, useRef } from 'react';
 import * as Cesium from 'cesium';
 
-const FlightLayer = ({ viewer, active }) => {
+// Store accumulated trail positions across renders
+const trailHistory = {};  // { icao24: [{ lon, lat, alt, time }] }
+const MAX_TRAIL_POINTS = 30; // Keep last 30 position samples per aircraft
+
+const FlightLayer = ({ viewer, active, currentTime }) => {
     const [flights, setFlights] = useState([]);
     const dataSourceRef = useRef(null);
+    const trailDataSourceRef = useRef(null);
 
-    // Fetch flights from API periodically
+    // Fetch flight data
     useEffect(() => {
         if (!active) return;
 
         const fetchFlights = async () => {
             try {
-                const res = await fetch('/api/flights');
+                const url = currentTime
+                    ? `/api/flights?time=${currentTime.toISOString()}`
+                    : '/api/flights';
+                const res = await fetch(url);
                 const data = await res.json();
                 setFlights(data);
             } catch (err) {
@@ -20,11 +28,11 @@ const FlightLayer = ({ viewer, active }) => {
         };
 
         fetchFlights();
-        const interval = setInterval(fetchFlights, 10000); // Poll every 10s
-        return () => clearInterval(interval);
-    }, [active]);
+        const interval = currentTime ? null : setInterval(fetchFlights, 10000);
+        return () => { if (interval) clearInterval(interval); };
+    }, [active, currentTime]);
 
-    // Render flights to Cesium
+    // Render flights + trails
     useEffect(() => {
         if (!viewer) return;
 
@@ -33,109 +41,159 @@ const FlightLayer = ({ viewer, active }) => {
                 viewer.dataSources.remove(dataSourceRef.current);
                 dataSourceRef.current = null;
             }
+            if (trailDataSourceRef.current) {
+                viewer.dataSources.remove(trailDataSourceRef.current);
+                trailDataSourceRef.current = null;
+            }
             return;
         }
 
         const renderData = async () => {
+            // Ensure data sources exist
             if (!dataSourceRef.current) {
                 dataSourceRef.current = new Cesium.CustomDataSource('flights');
                 await viewer.dataSources.add(dataSourceRef.current);
             }
+            if (!trailDataSourceRef.current) {
+                trailDataSourceRef.current = new Cesium.CustomDataSource('flight-trails');
+                await viewer.dataSources.add(trailDataSourceRef.current);
+            }
 
             const ds = dataSourceRef.current;
-
-            // Keep track of which flights we updated
+            const trailDs = trailDataSourceRef.current;
             const updatedIds = new Set();
+            const updatedTrailIds = new Set();
 
             flights.forEach(flight => {
                 if (!flight.longitude || !flight.latitude) return;
 
-                const id = `flight-${flight.icao24}`;
+                const icao = flight.icao24;
+                const id = `flight-${icao}`;
+                const trailId = `trail-${icao}`;
                 updatedIds.add(id);
+                updatedTrailIds.add(trailId);
+
+                // Accumulate trail history
+                if (!trailHistory[icao]) trailHistory[icao] = [];
+                const lastEntry = trailHistory[icao][trailHistory[icao].length - 1];
+                // Only add if position changed
+                if (!lastEntry ||
+                    Math.abs(lastEntry.lon - flight.longitude) > 0.001 ||
+                    Math.abs(lastEntry.lat - flight.latitude) > 0.001) {
+                    trailHistory[icao].push({
+                        lon: flight.longitude,
+                        lat: flight.latitude,
+                        alt: flight.altitude || 10000,
+                        time: Date.now()
+                    });
+                    // Trim to max length
+                    if (trailHistory[icao].length > MAX_TRAIL_POINTS) {
+                        trailHistory[icao] = trailHistory[icao].slice(-MAX_TRAIL_POINTS);
+                    }
+                }
 
                 const position = Cesium.Cartesian3.fromDegrees(
-                    flight.longitude,
-                    flight.latitude,
-                    flight.altitude || 10000 // default to 10k meters if unknown
+                    flight.longitude, flight.latitude, flight.altitude || 10000
                 );
 
-                // Calculate heading quaternion for the icon rotation
                 const heading = Cesium.Math.toRadians(flight.heading || 0);
-                const pitch = 0;
-                const roll = 0;
-                const hpr = new Cesium.HeadingPitchRoll(heading, pitch, roll);
+                const hpr = new Cesium.HeadingPitchRoll(heading, 0, 0);
                 const orientation = Cesium.Transforms.headingPitchRollQuaternion(position, hpr);
 
-                const entity = ds.entities.getById(id);
-
-                // Metadata for info popup
-                const description = `
-          <table class="cesium-infoBox-defaultTable">
-            <tbody>
-              <tr><th>Callsign</th><td>${flight.callsign || 'Unknown'}</td></tr>
-              <tr><th>Country</th><td>${flight.origin_country || 'Unknown'}</td></tr>
-              <tr><th>Altitude</th><td>${flight.altitude ? Math.round(flight.altitude) + ' m' : 'N/A'}</td></tr>
-              <tr><th>Velocity</th><td>${flight.velocity ? Math.round(flight.velocity * 3.6) + ' km/h' : 'N/A'}</td></tr>
-              <tr><th>Heading</th><td>${flight.heading ? Math.round(flight.heading) + '°' : 'N/A'}</td></tr>
-            </tbody>
-          </table>
-        `;
-
-                // Color based on altitude (blue = low, green = mid, yellow = high, red = very high)
+                // Altitude coloring
                 let color = Cesium.Color.DODGERBLUE;
                 if (flight.altitude > 10000) color = Cesium.Color.CRIMSON;
                 else if (flight.altitude > 7000) color = Cesium.Color.GOLD;
                 else if (flight.altitude > 3000) color = Cesium.Color.LIMEGREEN;
 
+                const description = `
+                    <table class="cesium-infoBox-defaultTable"><tbody>
+                        <tr><th>Callsign</th><td>${flight.callsign || 'Unknown'}</td></tr>
+                        <tr><th>ICAO24</th><td>${icao}</td></tr>
+                        <tr><th>Country</th><td>${flight.origin_country || 'Unknown'}</td></tr>
+                        <tr><th>Altitude</th><td>${flight.altitude ? Math.round(flight.altitude) + ' m (' + Math.round(flight.altitude * 3.28084) + ' ft)' : 'N/A'}</td></tr>
+                        <tr><th>Velocity</th><td>${flight.velocity ? Math.round(flight.velocity * 3.6) + ' km/h (' + Math.round(flight.velocity * 1.94384) + ' kn)' : 'N/A'}</td></tr>
+                        <tr><th>Heading</th><td>${flight.heading ? Math.round(flight.heading) + '°' : 'N/A'}</td></tr>
+                        <tr><th>Vertical Rate</th><td>${flight.vertical_rate ? (flight.vertical_rate > 0 ? '↑' : '↓') + ' ' + Math.abs(Math.round(flight.vertical_rate)) + ' m/s' : 'Level'}</td></tr>
+                        <tr><th>On Ground</th><td>${flight.on_ground ? 'Yes' : 'No'}</td></tr>
+                    </tbody></table>`;
+
+                // Update or create the aircraft point entity
+                const entity = ds.entities.getById(id);
                 if (entity) {
-                    // Update existing
                     entity.position = position;
                     entity.orientation = orientation;
                     entity.description = description;
                     entity.point.color = color;
                 } else {
-                    // Create new
                     ds.entities.add({
-                        id: id,
-                        name: flight.callsign || flight.icao24,
-                        position: position,
-                        orientation: orientation,
-                        description: description,
+                        id, name: flight.callsign || icao,
+                        position, orientation, description,
                         point: {
-                            pixelSize: 8,
-                            color: color,
-                            outlineColor: Cesium.Color.WHITE,
-                            outlineWidth: 1,
-                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0.0, 5000000.0) // only visible somewhat close
+                            pixelSize: 7, color,
+                            outlineColor: Cesium.Color.WHITE.withAlpha(0.8), outlineWidth: 1,
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 8000000)
                         },
-                        path: {
-                            resolution: 1,
-                            material: new Cesium.PolylineGlowMaterialProperty({
-                                glowPower: 0.1,
-                                color: color
-                            }),
-                            width: 2,
-                            leadTime: 0,
-                            trailTime: 60 // show path for last 60 seconds
+                        label: {
+                            text: flight.callsign || '',
+                            font: '10px monospace',
+                            fillColor: Cesium.Color.WHITE,
+                            outlineColor: Cesium.Color.BLACK,
+                            outlineWidth: 2,
+                            style: Cesium.LabelStyle.FILL_AND_OUTLINE,
+                            pixelOffset: new Cesium.Cartesian2(12, 0),
+                            distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 1500000)
                         }
                     });
                 }
-            });
 
-            // Remove stale flights not in the current update
-            const entitiesToRemove = [];
-            ds.entities.values.forEach(entity => {
-                if (!updatedIds.has(entity.id)) {
-                    entitiesToRemove.push(entity.id);
+                // Render trail polyline
+                const trail = trailHistory[icao];
+                if (trail && trail.length >= 2) {
+                    const trailPositions = trail.map(p =>
+                        Cesium.Cartesian3.fromDegrees(p.lon, p.lat, p.alt)
+                    );
+
+                    const trailEntity = trailDs.entities.getById(trailId);
+                    if (trailEntity) {
+                        trailEntity.polyline.positions = trailPositions;
+                    } else {
+                        trailDs.entities.add({
+                            id: trailId,
+                            polyline: {
+                                positions: trailPositions,
+                                width: 3,
+                                material: new Cesium.PolylineGlowMaterialProperty({
+                                    glowPower: 0.25,
+                                    color: color.withAlpha(0.8)
+                                }),
+                                distanceDisplayCondition: new Cesium.DistanceDisplayCondition(0, 8000000)
+                            }
+                        });
+                    }
                 }
             });
-            entitiesToRemove.forEach(id => ds.entities.removeById(id));
+
+            // Remove stale aircraft entities
+            const toRemove = [];
+            ds.entities.values.forEach(e => { if (!updatedIds.has(e.id)) toRemove.push(e.id); });
+            toRemove.forEach(id => ds.entities.removeById(id));
+
+            // Remove stale trail entities
+            const trailsToRemove = [];
+            trailDs.entities.values.forEach(e => { if (!updatedTrailIds.has(e.id)) trailsToRemove.push(e.id); });
+            trailsToRemove.forEach(id => {
+                trailDs.entities.removeById(id);
+                // Clean up history for removed flights
+                const icao = id.replace('trail-', '');
+                delete trailHistory[icao];
+            });
         };
 
         renderData();
     }, [viewer, flights, active]);
 
-    return null; // This component handles rendering inside the Cesium canvas directly
+    return null;
 };
 
 export default FlightLayer;

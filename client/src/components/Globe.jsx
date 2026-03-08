@@ -2,18 +2,22 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as Cesium from 'cesium';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 import FlightLayer from '../layers/FlightLayer';
+import MaritimeLayer from '../layers/MaritimeLayer';
+import SatelliteLayer from '../layers/SatelliteLayer';
+import GpsJamLayer from '../layers/GpsJamLayer';
+import NotamLayer from '../layers/NotamLayer';
+import InternetLayer from '../layers/InternetLayer';
+import ConflictLayer from '../layers/ConflictLayer';
 
-// You will need to replace this with your actual Cesium Ion access token
 Cesium.Ion.defaultAccessToken = 'YOUR_CESIUM_ION_TOKEN';
 
-const Globe = ({ layers }) => {
+const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount }) => {
     const cesiumContainer = useRef(null);
     const [viewer, setViewer] = useState(null);
 
     useEffect(() => {
         if (!cesiumContainer.current || viewer) return;
 
-        // Initialize the Cesium Viewer
         const v = new Cesium.Viewer(cesiumContainer.current, {
             animation: false,
             baseLayerPicker: false,
@@ -28,33 +32,34 @@ const Globe = ({ layers }) => {
             navigationInstructionsInitiallyVisible: false,
             scene3DOnly: true,
             skyAtmosphere: new Cesium.SkyAtmosphere(),
-            skyBox: new Cesium.SkyBox({
-                sources: {
-                    positiveX: '/assets/skybox/px.jpg',
-                    negativeX: '/assets/skybox/nx.jpg',
-                    positiveY: '/assets/skybox/py.jpg',
-                    negativeY: '/assets/skybox/ny.jpg',
-                    positiveZ: '/assets/skybox/pz.jpg',
-                    negativeZ: '/assets/skybox/nz.jpg'
-                }
-            })
         });
 
-        // Make the globe look more "cyber/dark" by default if needed
         v.scene.globe.enableLighting = true;
-        v.scene.highDynamicRange = true;
+        v.scene.backgroundColor = Cesium.Color.fromCssColorString('#0a0a1a');
+        v.scene.globe.baseColor = Cesium.Color.fromCssColorString('#1a1a2e');
 
-        // Remove the default terrain provider (it can sometimes be slow)
-        // We will handle base layers in the effect below
+        // BUG FIX #1: Live coordinate display on mouse move
+        const handler = new Cesium.ScreenSpaceEventHandler(v.scene.canvas);
+        handler.setInputAction((movement) => {
+            const cartesian = v.camera.pickEllipsoid(movement.endPosition, v.scene.globe.ellipsoid);
+            if (cartesian) {
+                const cartographic = Cesium.Cartographic.fromCartesian(cartesian);
+                const lat = Cesium.Math.toDegrees(cartographic.latitude);
+                const lon = Cesium.Math.toDegrees(cartographic.longitude);
+                onMouseMove({ lat, lon });
+            }
+        }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
         setViewer(v);
+        if (onViewerReady) onViewerReady(v);
 
         return () => {
+            handler.destroy();
             v.destroy();
         };
     }, []);
 
-    // Handle Base Layer Changes
+    // Handle base layer changes
     useEffect(() => {
         if (!viewer) return;
 
@@ -62,18 +67,39 @@ const Globe = ({ layers }) => {
             const layersCollection = viewer.imageryLayers;
             layersCollection.removeAll();
 
-            // Setup a default free OpenStreetMap base layer
-            const osmProvider = new Cesium.OpenStreetMapImageryProvider({
-                url: 'https://a.tile.openstreetmap.org/'
-            });
-            layersCollection.addImageryProvider(osmProvider);
+            if (layers.baseLayer === 'dark') {
+                layersCollection.addImageryProvider(
+                    new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',
+                        credit: '© CartoDB © OpenStreetMap'
+                    })
+                );
+            } else if (layers.baseLayer === 'satellite') {
+                // Use Esri World Imagery (free, no token, actual satellite tiles)
+                layersCollection.addImageryProvider(
+                    new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                        credit: '© Esri, Maxar, Earthstar Geographics'
+                    })
+                );
+            } else {
+                // Terrain: Use OpenTopoMap which shows elevation contours
+                layersCollection.addImageryProvider(
+                    new Cesium.UrlTemplateImageryProvider({
+                        url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                        subdomains: 'abc',
+                        credit: '© OpenTopoMap contributors'
+                    })
+                );
+            }
 
+            // BUG FIX #4: Add actual terrain elevation for terrain mode
             if (layers.baseLayer === 'terrain') {
                 try {
-                    // Try to load world terrain, will fail gracefully without token but map will still show
-                    viewer.terrainProvider = await Cesium.createWorldTerrainAsync();
+                    viewer.terrainProvider = await Cesium.CesiumTerrainProvider.fromUrl(
+                        'https://s3.amazonaws.com/cesiumjs/smallTerrain'
+                    );
                 } catch (e) {
-                    console.log("No terrain access without Ion token, using ellipsoid");
                     viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider();
                 }
             } else {
@@ -84,11 +110,18 @@ const Globe = ({ layers }) => {
         updateBaseLayer();
     }, [viewer, layers.baseLayer]);
 
-    // Expose viewer for child layer components
     return (
         <div ref={cesiumContainer} style={{ width: '100%', height: '100%' }}>
             {viewer && (
-                <FlightLayer viewer={viewer} active={layers.flights} />
+                <>
+                    <FlightLayer viewer={viewer} active={layers.flights} currentTime={currentTime} onCount={(c) => onLayerCount('flights', c)} />
+                    <MaritimeLayer viewer={viewer} active={layers.maritime} onCount={(c) => onLayerCount('maritime', c)} />
+                    <SatelliteLayer viewer={viewer} active={layers.satellites} onCount={(c) => onLayerCount('satellites', c)} />
+                    <GpsJamLayer viewer={viewer} active={layers.gpsJam} onCount={(c) => onLayerCount('gpsJam', c)} />
+                    <NotamLayer viewer={viewer} active={layers.notams} onCount={(c) => onLayerCount('notams', c)} />
+                    <InternetLayer viewer={viewer} active={layers.internet} onCount={(c) => onLayerCount('internet', c)} />
+                    <ConflictLayer viewer={viewer} active={layers.conflicts} onCount={(c) => onLayerCount('conflicts', c)} />
+                </>
             )}
         </div>
     );
