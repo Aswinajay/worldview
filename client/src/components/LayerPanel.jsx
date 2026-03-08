@@ -11,25 +11,27 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts, status }) 
                 {collapsed ? <X size={20} /> : <Menu size={20} />}
             </button>
 
-            <div className={`layer-panel glass-panel slide-in-left ${collapsed ? 'open' : ''}`}>
-                <h2 style={{ fontSize: '14px', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                    Intelligence Layers
+            <div className={`layer-panel glass-panel slide-in-left ${collapsed ? 'open' : ''}`} style={{ borderRight: '2px solid var(--color-accent)' }}>
+                <h2 style={{ fontSize: '13px', textTransform: 'uppercase', letterSpacing: '3px', color: 'var(--color-accent)', marginBottom: '20px', fontWeight: 800 }}>
+                    MISSION PARAMETERS
                 </h2>
 
                 <div className="layer-section" style={{ marginBottom: '24px' }}>
-                    <h3 style={{ fontSize: '12px', marginBottom: '12px', color: 'var(--text-secondary)' }}>BASE MAP</h3>
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <h3 style={{ fontSize: '10px', marginBottom: '12px', color: 'var(--text-secondary)', letterSpacing: '1px' }}>TERRAIN VISUALIZATION</h3>
+                    <div style={{ display: 'flex', gap: '4px' }}>
                         {['satellite', 'terrain', 'dark'].map(type => (
                             <button
                                 key={type}
                                 onClick={() => setBaseLayer(type)}
                                 style={{
-                                    flex: 1, padding: '6px', fontSize: '11px', textTransform: 'capitalize',
-                                    background: layers.baseLayer === type ? 'var(--color-accent)' : 'rgba(255,255,255,0.05)',
-                                    color: layers.baseLayer === type ? '#000' : '#fff',
-                                    border: 'none', borderRadius: '4px', cursor: 'pointer',
-                                    fontWeight: layers.baseLayer === type ? 600 : 400,
-                                    transition: 'all 0.2s ease'
+                                    flex: 1, padding: '8px 4px', fontSize: '9px', textTransform: 'uppercase',
+                                    background: layers.baseLayer === type ? 'var(--color-accent)' : 'rgba(51,255,0,0.05)',
+                                    color: layers.baseLayer === type ? '#000' : 'var(--color-accent)',
+                                    border: `1px solid ${layers.baseLayer === type ? 'var(--color-accent)' : 'rgba(51,255,0,0.2)'}`,
+                                    borderRadius: '2px', cursor: 'pointer',
+                                    fontWeight: 800,
+                                    transition: 'all 0.1s ease',
+                                    letterSpacing: '1px'
                                 }}
                             >
                                 {type}
@@ -39,131 +41,131 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts, status }) 
                 </div>
 
                 <div className="layer-section">
-                    <h3 style={{ fontSize: '12px', marginBottom: '12px', color: 'var(--text-secondary)' }}>LIVE DATA OVERLAYS</h3>
+                    <h3 style={{ fontSize: '10px', marginBottom: '12px', color: 'var(--text-secondary)', letterSpacing: '1px' }}>OPERATIONAL OVERLAYS</h3>
 
                     <LayerToggle
                         id="flights"
                         icon={<Plane size={16} />}
-                        label="ADS-B Flights"
+                        label="AERIAL ASSETS (ADSB)"
                         active={layers.flights}
                         onToggle={() => toggleLayer('flights')}
                         status={status?.flights || 'live'}
                         count={layerCounts.flights}
-                        countLabel="tracked"
+                        countLabel="TRACKED"
                     />
 
                     <LayerToggle
                         id="maritime"
                         icon={<Ship size={16} />}
-                        label="AIS Maritime"
+                        label="NAVAL ASSETS (AIS)"
                         active={layers.maritime}
                         onToggle={() => toggleLayer('maritime')}
                         status={status?.maritime}
                         count={layerCounts.maritime}
-                        countLabel="vessels"
+                        countLabel="VESSELS"
                     />
 
                     <LayerToggle
                         id="satellites"
                         icon={<Satellite size={16} />}
-                        label="Orbital Assets"
+                        label="ORBITAL DEPLOYMENT"
                         active={layers.satellites}
                         onToggle={() => toggleLayer('satellites')}
                         status={status?.satellites}
                         count={layerCounts.satellites}
-                        countLabel="tracked"
+                        countLabel="ASSETS"
                     />
 
-                    <div style={{ height: '1px', background: 'var(--border-glass)', margin: '16px 0' }} />
+                    <div style={{ height: '1px', background: 'rgba(51,255,0,0.15)', margin: '16px 0' }} />
 
                     <LayerToggle
                         id="earthquakes"
                         icon={<Activity size={16} />}
-                        label="Live Earthquakes"
+                        label="SEISMIC ACTIVITY"
                         active={layers.earthquakes}
                         onToggle={() => toggleLayer('earthquakes')}
                         status={status?.earthquakes}
                         count={layerCounts.earthquakes}
-                        countLabel="quakes"
+                        countLabel="EVENTS"
                     />
 
                     <LayerToggle
                         id="notams"
                         icon={<AlertTriangle size={16} />}
-                        label="Airspace NOTAMs"
+                        label="AIRSPACE ADVISORIES"
                         active={layers.notams}
                         onToggle={() => toggleLayer('notams')}
                         status={status?.notams}
                         count={layerCounts.notams}
-                        countLabel="active"
+                        countLabel="ACTIVE"
                     />
 
                     <LayerToggle
                         id="internet"
                         icon={<WifiOff size={16} />}
-                        label="Internet Outages"
+                        label="CYBER INFRASTRUCTURE"
                         active={layers.internet}
                         onToggle={() => toggleLayer('internet')}
                         status={status?.internet}
                         count={layerCounts.internet}
-                        countLabel="countries"
+                        countLabel="REGIONS"
                     />
 
                     <LayerToggle
                         id="eonet"
                         icon={<CloudLightning size={16} />}
-                        label="Natural Events"
+                        label="ENVIRONMENTAL INTEL"
                         active={layers.eonet}
                         onToggle={() => toggleLayer('eonet')}
                         status={status?.eonet}
                         count={layerCounts.eonet}
-                        countLabel="events"
+                        countLabel="ALERTS"
                     />
 
-                    <div style={{ height: '1px', background: 'var(--border-glass)', margin: '16px 0' }} />
+                    <div style={{ height: '1px', background: 'rgba(51,255,0,0.15)', margin: '16px 0' }} />
 
                     <LayerToggle
                         id="routes"
                         icon={<Radio size={16} />}
-                        label="Aviation Corridors"
+                        label="AERIAL CORRIDORS"
                         active={layers.routes}
                         onToggle={() => toggleLayer('routes')}
                         status={status?.routes}
-                        countLabel="global"
+                        countLabel="GLOBAL"
                     />
 
                     <LayerToggle
                         id="airports"
                         icon={<MapPin size={16} />}
-                        label="Aviation Hubs"
+                        label="STRATEGIC AIRFIELDS"
                         active={layers.airports}
                         onToggle={() => toggleLayer('airports')}
                         status={status?.airports}
                         count={layerCounts.airports}
-                        countLabel="hubs"
+                        countLabel="FACILITIES"
                     />
 
-                    <div style={{ height: '1px', background: 'var(--border-glass)', margin: '16px 0' }} />
+                    <div style={{ height: '1px', background: 'rgba(51,255,0,0.15)', margin: '16px 0' }} />
 
                     <LayerToggle
                         id="maritimeLanes"
                         icon={<Ship size={16} />}
-                        label="Shipping Lanes"
+                        label="MARITIME LANES"
                         active={layers.maritimeLanes}
                         onToggle={() => toggleLayer('maritimeLanes')}
                         status={status?.maritimeLanes}
-                        countLabel="global"
+                        countLabel="GLOBAL"
                     />
 
                     <LayerToggle
                         id="ports"
                         icon={<Anchor size={16} />}
-                        label="Strategic Ports"
+                        label="LOGISTICS HUBS"
                         active={layers.ports}
                         onToggle={() => toggleLayer('ports')}
                         status={status?.ports}
                         count={layerCounts.ports}
-                        countLabel="ports"
+                        countLabel="PORTS"
                     />
                 </div>
 

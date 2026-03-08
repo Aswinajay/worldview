@@ -40,9 +40,23 @@ const Globe = ({ layers, currentTime, onMouseMove, onViewerReady, onLayerCount, 
             skyAtmosphere: new Cesium.SkyAtmosphere(),
         });
 
-        v.scene.globe.enableLighting = true;
-        v.scene.backgroundColor = Cesium.Color.fromCssColorString('#0a0a1a');
-        v.scene.globe.baseColor = Cesium.Color.fromCssColorString('#1a1a2e');
+        v.scene.globe.enableLighting = false; // Rigid tactical lighting
+        v.scene.backgroundColor = Cesium.Color.fromCssColorString('#050705');
+        v.scene.globe.baseColor = Cesium.Color.fromCssColorString('#0a0c0a');
+
+        // Add Tactical Bloom for that high-tech radar glow
+        v.scene.postProcessStages.bloom.enabled = true;
+        v.scene.postProcessStages.bloom.uniforms.contrast = 1.2;
+        v.scene.postProcessStages.bloom.uniforms.brightness = 0.05;
+        v.scene.postProcessStages.bloom.uniforms.glowOnly = false;
+        v.scene.postProcessStages.bloom.uniforms.delta = 1.0;
+        v.scene.postProcessStages.bloom.uniforms.sigma = 2.0;
+
+        // Tactical Atmosphere
+        v.scene.skyAtmosphere.show = true;
+        v.scene.skyAtmosphere.brightnessShift = -0.5;
+        v.scene.skyAtmosphere.saturationShift = -0.8;
+        v.scene.skyAtmosphere.hueShift = 0.4; // Slight green tint
 
         // View Change Logic
         const handleViewChange = () => {

@@ -167,14 +167,15 @@ const FlightLayer = ({ viewer, active, currentTime, onCount, onLayerState, viewB
 
                 const description = `
                     <div class="tactical-info">
-                        <div style="font-weight:700; color:${color.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1)">
-                            ${flight.callsign || 'N/A'} [${icao}]
+                        <div style="font-weight:800; color:${color.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.2); letter-spacing:1px">
+                            IDENT: ${flight.callsign || 'UNKNOWN'} [${icao.toUpperCase()}]
                         </div>
                         <table class="cesium-infoBox-defaultTable"><tbody>
-                            <tr><th>Altitude</th><td>${Math.round(altitude * 3.28084).toLocaleString()} FT</td></tr>
-                            <tr><th>Speed</th><td>${Math.round(velocity * 1.94384)} KN</td></tr>
-                            <tr><th>Heading</th><td>${Math.round(headingDeg)}°</td></tr>
-                            <tr><th>Source</th><td>ADS-B REALTIME</td></tr>
+                            <tr><th>FLIGHT LEVEL</th><td>FL${Math.round(altitude * 3.28084 / 100).toString().padStart(3, '0')} / ${Math.round(altitude).toLocaleString()}M</td></tr>
+                            <tr><th>GRND VELOCITY</th><td>${Math.round(velocity * 1.94384)} KT</td></tr>
+                            <tr><th>HEADING (T)</th><td>${Math.round(headingDeg).toString().padStart(3, '0')}°</td></tr>
+                            <tr><th>THREAT PROFILE</th><td style="color:var(--color-success); font-weight:800">NOMINAL / CIVILIAN</td></tr>
+                            <tr><th>INTEL SOURCE</th><td>SIGINT/ADSB-V2</td></tr>
                         </tbody></table>
                     </div>`;
 

@@ -1,21 +1,42 @@
-/* Core Design System & Variables */
+/* Military-Grade Tactical Design System */
 :root {
-  --bg-dark: #0a0a1a;
-  --bg-panel: rgba(16, 18, 27, 0.6);
-  --border-glass: rgba(255, 255, 255, 0.1);
-  --text-primary: #f0f0f5;
-  --text-secondary: #a0a0b0;
+  --bg-dark: #050705;
+  /* Stealth Black */
+  --bg-panel: rgba(10, 12, 10, 0.85);
+  --border-glass: rgba(51, 255, 0, 0.15);
+  /* Radar Green Border */
+  --text-primary: #e0eee0;
+  --text-secondary: #8a9a8a;
 
-  --color-accent: #00d2ff;
-  --color-success: #00e676;
-  --color-warning: #ffea00;
-  --color-danger: #ff1744;
+  --color-accent: #33ff00;
+  /* Radar Green */
+  --color-success: #00ff00;
+  --color-warning: #ffb300;
+  /* Tactical Amber */
+  --color-danger: #ff3d00;
+  --color-alert: #ff0000;
 
-  --panel-width: 280px;
-  --header-height: 50px;
+  --panel-width: 300px;
+  --header-height: 52px;
   --timeline-height: 80px;
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'JetBrains Mono', 'Roboto Mono', monospace;
+}
+
+/* CRT Scanline Effect Overlay */
+body::after {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+  z-index: 1000;
+  background-size: 100% 3px, 3px 100%;
+  pointer-events: none;
+  opacity: 0.15;
 }
 
 * {

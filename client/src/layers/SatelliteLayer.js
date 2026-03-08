@@ -124,14 +124,17 @@ const SatelliteLayer = ({ viewer, active, onCount, onLayerState }) => {
                                 },
                                 description: `
                                     <div class="tactical-info">
-                                        <div style="font-weight:700; color:${cesiumColor.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1)">
-                                            ${sat.name}
+                                        <div style="font-weight:800; color:${cesiumColor.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.2); letter-spacing:1px">
+                                            IDENT: ${sat.name.toUpperCase()}
                                         </div>
                                         <table class="cesium-infoBox-defaultTable"><tbody>
-                                            <tr><th>NORAD</th><td>${sat.noradId}</td></tr>
-                                            <tr><th>Category</th><td>${sat.group}</td></tr>
-                                            <tr><th>Alt</th><td>${Math.round(geo.height)} KM</td></tr>
-                                            <tr><th>Status</th><td>ORBITAL NOMINAL</td></tr>
+                                            <tr><th>SATCAT IDENT</th><td>${sat.noradId}</td></tr>
+                                            <tr><th>MISSION GROUP</th><td>${sat.group || 'GENERAL'}</td></tr>
+                                            <tr><th>ORBITAL ALTITUDE</th><td>${Math.round(geo.height).toLocaleString()} KM</td></tr>
+                                            <tr><th>THREAT PROFILE</th><td style="color:${(sat.group === 'GPS' || sat.group === 'ISS/Stations') ? 'var(--color-warning)' : 'var(--color-success)'}; font-weight:800">
+                                                ${(sat.group === 'GPS' || sat.group === 'ISS/Stations') ? 'STRATEGIC ASSET' : 'NOMINAL / RECON'}
+                                            </td></tr>
+                                            <tr><th>INTEL SOURCE</th><td>TELEMETRY/TLE-SGP4</td></tr>
                                         </tbody></table>
                                     </div>`
                             });

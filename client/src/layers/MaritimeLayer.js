@@ -150,16 +150,21 @@ const MaritimeLayer = ({ viewer, active, onCount, onLayerState, viewBbox }) => {
                     </svg>
                 `)}`;
 
+                const threatLevel = ship.ship_type === 'Tanker' || ship.ship_type === 'Cargo' ? 'LOGISTICAL ASSET' : 'ELEVATED MONITORING';
+                const threatColor = ship.ship_type === 'Tanker' || ship.ship_type === 'Cargo' ? 'var(--color-success)' : 'var(--color-warning)';
+
                 const description = `
                     <div class="tactical-info">
-                        <div style="font-weight:700; color:${color.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.1)">
-                            ${ship.ship_name || 'UNKNOWN VESSEL'}
+                        <div style="font-weight:800; color:${color.toCssColorString()}; margin-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.2); letter-spacing:1px">
+                            IDENT: ${String(ship.ship_name || 'UNKNOWN SIGNAL').toUpperCase()}
                         </div>
                         <table class="cesium-infoBox-defaultTable"><tbody>
-                            <tr><th>MMSI</th><td>${mmsi}</td></tr>
-                            <tr><th>Type</th><td>${ship.ship_type || 'Unknown'}</td></tr>
-                            <tr><th>Speed</th><td>${speedKnots.toFixed(1)} KN</td></tr>
-                            <tr><th>Heading</th><td>${Math.round(headingDeg)}°</td></tr>
+                            <tr><th>HULL IDENT</th><td>${mmsi}</td></tr>
+                            <tr><th>MISSION PROFILE</th><td>${ship.ship_type || 'UNDEFINED'}</td></tr>
+                            <tr><th>SURFACE VELOCITY</th><td>${speedKnots.toFixed(1)} KT (SOG)</td></tr>
+                            <tr><th>COURSE OVER GRND</th><td>${Math.round(headingDeg).toString().padStart(3, '0')}° (COG)</td></tr>
+                            <tr><th>THREAT LEVEL</th><td style="color:${threatColor}; font-weight:800">${threatLevel}</td></tr>
+                            <tr><th>INTEL SOURCE</th><td>ELINT/AIS-VHF</td></tr>
                         </tbody></table>
                     </div>`;
 
