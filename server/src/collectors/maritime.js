@@ -53,8 +53,9 @@ const fetchMaritime = async () => {
             VALUES (?, ?, ?, ?, ?, ?, ?)
         `);
 
+        // Batch inserts to prevent blocking the Node.js event loop on free tier edge hosting
         let savedCount = 0;
-        const insertMany = db.transaction((records) => {
+        const insertBatch = db.transaction((records) => {
             for (const ship of records) {
                 if (ship.geometry && ship.geometry.coordinates) {
                     insertStmt.run(
@@ -71,7 +72,13 @@ const fetchMaritime = async () => {
             }
         });
 
-        insertMany(ships);
+        const CHUNK_SIZE = 1000;
+        for (let i = 0; i < ships.length; i += CHUNK_SIZE) {
+            const chunk = ships.slice(i, i + CHUNK_SIZE);
+            insertBatch(chunk);
+            // Yield the event loop so node-cron and node-fetch timers can fire
+            await new Promise(r => setImmediate(r));
+        }
         console.log(`Successfully indexed ${savedCount} global maritime vessels.`);
     } catch (err) {
         console.error('Error fetching maritime AIS:', err.message);
