@@ -89,27 +89,7 @@ const LayerPanel = ({ layers, toggleLayer, setBaseLayer, layerCounts, status }) 
                         countLabel="EVENTS"
                     />
 
-                    <LayerToggle
-                        id="notams"
-                        icon={<AlertTriangle size={16} />}
-                        label="AIRSPACE ADVISORIES"
-                        active={layers.notams}
-                        onToggle={() => toggleLayer('notams')}
-                        status={status?.notams}
-                        count={layerCounts.notams}
-                        countLabel="ACTIVE"
-                    />
 
-                    <LayerToggle
-                        id="internet"
-                        icon={<WifiOff size={16} />}
-                        label="CYBER INFRASTRUCTURE"
-                        active={layers.internet}
-                        onToggle={() => toggleLayer('internet')}
-                        status={status?.internet}
-                        count={layerCounts.internet}
-                        countLabel="REGIONS"
-                    />
 
                     <LayerToggle
                         id="eonet"

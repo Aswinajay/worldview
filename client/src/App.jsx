@@ -12,8 +12,6 @@ function App() {
         maritime: false,
         satellites: false,
         earthquakes: false,
-        notams: false,
-        internet: false,
         eonet: false,
         routes: false,
         airports: false,
